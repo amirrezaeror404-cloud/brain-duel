@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Brain Duel</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
 
@@ -28,6 +32,11 @@ h1{
 color:#38bdf8;
 }
 
+#username{
+margin-bottom:20px;
+font-size:18px;
+}
+
 button{
 width:100%;
 padding:15px;
@@ -42,10 +51,6 @@ cursor:pointer;
 background:white;
 }
 
-.answer-btn:hover{
-opacity:0.9;
-}
-
 .play-again{
 background:#38bdf8;
 color:white;
@@ -54,11 +59,14 @@ color:white;
 </style>
 
 </head>
+
 <body>
 
 <div class="container">
 
 <h1>🧠 Brain Duel</h1>
+
+<p id="username">Loading...</p>
 
 <h2 id="question"></h2>
 
@@ -69,6 +77,24 @@ color:white;
 </div>
 
 <script>
+
+const tg = window.Telegram.WebApp;
+
+tg.ready();
+
+let userName = "Guest";
+
+if(tg.initDataUnsafe &&
+   tg.initDataUnsafe.user){
+
+userName =
+tg.initDataUnsafe.user.first_name;
+
+}
+
+document.getElementById("username")
+.innerHTML =
+"👋 Welcome " + userName;
 
 const questions = [
 
@@ -137,22 +163,30 @@ correct:1
 let currentQuestion = 0;
 let score = 0;
 
-const questionEl = document.getElementById("question");
-const answersEl = document.getElementById("answers");
-const resultEl = document.getElementById("result");
+const questionEl =
+document.getElementById("question");
+
+const answersEl =
+document.getElementById("answers");
+
+const resultEl =
+document.getElementById("result");
 
 function loadQuestion(){
 
 const q = questions[currentQuestion];
 
 questionEl.innerText =
-`Question ${currentQuestion + 1}/10\n\n${q.question}`;
+`Question ${currentQuestion + 1}/10
+
+${q.question}`;
 
 answersEl.innerHTML = "";
 
 q.answers.forEach((answer,index)=>{
 
-const btn = document.createElement("button");
+const btn =
+document.createElement("button");
 
 btn.className="answer-btn";
 
@@ -167,9 +201,14 @@ score++;
 currentQuestion++;
 
 if(currentQuestion < questions.length){
+
 loadQuestion();
-}else{
+
+}
+else{
+
 showResult();
+
 }
 
 };
@@ -186,7 +225,9 @@ questionEl.innerHTML="";
 answersEl.innerHTML="";
 
 let percent =
-Math.round((score/questions.length)*100);
+Math.round(
+(score/questions.length)*100
+);
 
 let title="";
 
@@ -211,10 +252,17 @@ resultEl.innerHTML = `
 
 <h2>${title}</h2>
 
-<p>You answered ${score} out of ${questions.length} correctly.</p>
+<p>You answered
+${score}
+out of
+${questions.length}
+correctly.</p>
 
-<button class="play-again" onclick="location.reload()">
+<button class="play-again"
+onclick="location.reload()">
+
 🔄 Play Again
+
 </button>
 
 `;
