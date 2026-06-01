@@ -6,12 +6,35 @@
 <title>Brain Duel</title>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <style>
-body{margin:0;padding:20px;background:#0f172a;font-family:Arial;color:white;text-align:center;}
-.container{max-width:550px;margin:auto;background:#1e293b;padding:20px;border-radius:20px;}
-button{width:100%;padding:14px;margin-top:10px;border:none;border-radius:12px;font-size:16px;cursor:pointer;}
+body{
+margin:0;
+padding:20px;
+background:#0f172a;
+font-family:Arial;
+color:white;
+text-align:center;
+}
+
+.container{
+max-width:550px;
+margin:auto;
+background:#1e293b;
+padding:20px;
+border-radius:20px;
+}
+
+button{
+width:100%;
+padding:14px;
+margin-top:10px;
+border:none;
+border-radius:12px;
+font-size:16px;
+cursor:pointer;
+}
+
 .play{background:#38bdf8;color:white;}
 .solo{background:#22c55e;color:white;}
 .answer{background:white;color:black;}
@@ -22,10 +45,9 @@ button{width:100%;padding:14px;margin-top:10px;border:none;border-radius:12px;fo
 
 <div class="container">
 
-<h1>🧠 Brain Duel</h1>
+<h1>🧠 Brain Duel HARD</h1>
 
-<button class="play" onclick="findMatch()">Play Online</button>
-<button class="solo" onclick="startSolo()">Play Solo</button>
+<button class="play" onclick="startSolo()">Play Solo</button>
 
 <h3 id="status"></h3>
 <h2 id="timer"></h2>
@@ -39,10 +61,9 @@ button{width:100%;padding:14px;margin-top:10px;border:none;border-radius:12px;fo
 
 <script>
 
-const socket = io("YOUR_SERVER_URL");
+const tg = window.Telegram.WebApp;
+tg.ready();
 
-let matchId=null;
-let solo=false;
 let questions=[];
 let index=0;
 let score=0;
@@ -50,62 +71,70 @@ let answered=false;
 let timer;
 let time=10;
 
-// ---------------- USER ----------------
-const tg = window.Telegram.WebApp;
-tg.ready();
-
-// ---------------- FIND MATCH ----------------
-function findMatch(){
-solo=false;
-socket.emit("find_match",{id:tg.initDataUnsafe?.user?.id || Math.random()*99999});
-document.getElementById("status").innerText="Searching...";
-}
-
-// ---------------- SOLO ----------------
-function startSolo(){
-solo=true;
-index=0;
-score=0;
-questions=getRandomQuestions();
-loadQuestion();
-document.getElementById("status").innerText="Solo Mode";
-}
-
-// ---------------- 30 QUESTIONS ----------------
+// ---------------- HARD QUESTIONS ----------------
 const ALL_QUESTIONS = [
 
-{q:"Capital of France?",a:["Berlin","Paris","Rome","London"],c:1},
-{q:"2 + 2 ?",a:["3","4","5","6"],c:1},
-{q:"Largest planet?",a:["Earth","Mars","Jupiter","Venus"],c:2},
-{q:"5 x 5 ?",a:["20","25","30","15"],c:1},
-{q:"Color of sky?",a:["Blue","Green","Red","Yellow"],c:0},
-{q:"Capital of Iran?",a:["Tehran","Shiraz","Tabriz","Mashhad"],c:0},
-{q:"10 / 2 ?",a:["2","3","5","6"],c:2},
-{q:"Fastest land animal?",a:["Lion","Cheetah","Tiger","Horse"],c:1},
-{q:"Ocean largest?",a:["Atlantic","Pacific","Indian","Arctic"],c:1},
-{q:"How many days in week?",a:["5","6","7","8"],c:2},
+{q:"If all Bloops are Razzies and all Razzies are Lazzies, are all Bloops definitely Lazzies?",a:["Yes","No","Sometimes","Cannot determine"],c:0},
 
-{q:"Capital of USA?",a:["NY","Washington DC","LA","Boston"],c:1},
-{q:"Sun is a?",a:["Planet","Star","Moon","Rock"],c:1},
-{q:"3 x 3 ?",a:["6","9","12","15"],c:1},
-{q:"Water formula?",a:["CO2","H2O","O2","NaCl"],c:1},
-{q:"Bird that can't fly?",a:["Eagle","Penguin","Crow","Sparrow"],c:1},
-{q:"Square root of 81?",a:["7","8","9","10"],c:2},
-{q:"Capital of Japan?",a:["Seoul","Tokyo","Beijing","Bangkok"],c:1},
-{q:"Which is programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
-{q:"5 + 7 ?",a:["10","11","12","13"],c:2},
-{q:"Human has how many legs?",a:["2","3","4","5"],c:0},
+{q:"What is the next number? 2, 6, 12, 20, 30, ?",a:["40","41","42","36"],c:1},
 
-{q:"Red + Blue = ?",a:["Green","Purple","Orange","Yellow"],c:1},
-{q:"Earth is?",a:["Flat","Round","Square","Triangle"],c:1},
-{q:"Which is fruit?",a:["Carrot","Apple","Potato","Onion"],c:1},
-{q:"Which is vehicle?",a:["Chair","Car","Table","Book"],c:1},
-{q:"Capital of UK?",a:["London","Paris","Rome","Berlin"],c:0},
-{q:"HTML is for?",a:["Design","Structure","Music","Game"],c:1},
-{q:"CPU is?",a:["Brain of computer","Screen","Mouse","Keyboard"],c:0},
-{q:"1 hour = ?",a:["30 min","60 min","90 min","100 min"],c:1},
-{q:"Which gas we breathe?",a:["CO2","Oxygen","Helium","Hydrogen"],c:1},
-{q:"Ice is?",a:["Hot","Solid","Gas","Liquid"],c:1}
+{q:"Which number is missing? 1, 4, 9, 16, ?, 36",a:["20","24","25","30"],c:2},
+
+{q:"A train travels 60 km in 1 hour. How far in 2.5 hours?",a:["120","150","180","200"],c:1},
+
+{q:"Which is odd one out? Apple, Banana, Carrot, Mango",a:["Apple","Banana","Carrot","Mango"],c:2},
+
+{q:"If 3x = 15, what is x?",a:["3","5","7","9"],c:1},
+
+{q:"What comes next? Z, X, V, T, ?",a:["R","S","U","Q"],c:0},
+
+{q:"If today is Monday, what day is after 10 days?",a:["Wednesday","Thursday","Friday","Sunday"],c:1},
+
+{q:"Which is heavier? 1kg iron or 1kg cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
+
+{q:"A clock shows 3:15. Angle between hands?",a:["0","7.5","30","45"],c:1},
+
+{q:"If 5 workers finish job in 10 days, 10 workers?",a:["5","10","15","20"],c:0},
+
+{q:"Find odd: 2, 3, 5, 9, 11",a:["2","3","5","9"],c:3},
+
+{q:"Cube root of 64?",a:["2","3","4","8"],c:2},
+
+{q:"What is 15% of 200?",a:["20","25","30","35"],c:2},
+
+{q:"Which is not a programming language?",a:["Python","Java","HTML","C++"],c:2},
+
+{q:"Which planet has rings?",a:["Earth","Mars","Saturn","Venus"],c:2},
+
+{q:"If 8 = 64, 7 = 49, 6 = ?",a:["30","36","42","48"],c:1},
+
+{q:"What is 0 factorial (0!)?",a:["0","1","Undefined","10"],c:1},
+
+{q:"Which word is spelled correctly?",a:["Recieve","Receive","Recive","Receeve"],c:1},
+
+{q:"If all cats are animals, are all animals cats?",a:["Yes","No","Sometimes","Unknown"],c:1},
+
+{q:"What is 1000 - 1 - 1 - 1?",a:["997","998","999","1000"],c:0},
+
+{q:"Which is prime?",a:["21","27","29","33"],c:2},
+
+{q:"Which gas is most abundant in air?",a:["Oxygen","Nitrogen","CO2","Hydrogen"],c:1},
+
+{q:"If x+y=10 and x=4, y=?",a:["4","5","6","7"],c:2},
+
+{q:"Which is square of 13?",a:["144","156","169","196"],c:2},
+
+{q:"If a triangle has 180°, 2 angles 60°, third?",a:["60","90","120","30"],c:0},
+
+{q:"Which is NOT real number?",a:["0","-1","√-1","3.5"],c:2},
+
+{q:"Speed = distance/time. If distance=100, time=4?",a:["20","25","30","40"],c:1},
+
+{q:"Binary of 2?",a:["10","11","01","00"],c:0},
+
+{q:"Which is largest?",a:["0.9","0.11","0.101","0.99"],c:3},
+
+{q:"If 1=3, 2=6, 3=9 then 4=?",a:["10","11","12","13"],c:2}
 
 ];
 
@@ -114,21 +143,31 @@ function shuffle(a){
 return [...a].sort(()=>Math.random()-0.5);
 }
 
-// get 10 random questions per player
-function getRandomQuestions(){
+// 10 random questions
+function getQuestions(){
 return shuffle(ALL_QUESTIONS).slice(0,10);
 }
 
-// ---------------- LOAD QUESTION ----------------
+// ---------------- SOLO ----------------
+function startSolo(){
+
+questions=getQuestions();
+index=0;
+score=0;
+
+loadQuestion();
+}
+
+// ---------------- LOAD ----------------
 function loadQuestion(){
 
 if(index>=questions.length){
-endGame();
-return;
+return endGame();
 }
 
 answered=false;
 time=10;
+
 startTimer();
 
 const q=questions[index];
@@ -191,9 +230,13 @@ document.getElementById("question").innerHTML="";
 document.getElementById("answers").innerHTML="";
 document.getElementById("timer").innerHTML="";
 
-document.getElementById("result").innerHTML=
-`<h2>Game Over</h2>
-<h3>Score: ${score}/10</h3>`;
+let percent=Math.round((score/questions.length)*100);
+
+document.getElementById("result").innerHTML=`
+<h2>Game Over</h2>
+<h3>Score: ${score}/10</h3>
+<h2>${percent}%</h2>
+`;
 }
 
 </script>
