@@ -6,6 +6,7 @@
 <title>Brain Duel</title>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <style>
@@ -45,17 +46,18 @@ cursor:pointer;
 </style>
 
 </head>
+
 <body>
 
 <div class="container">
 
 <h1>🧠 Brain Duel</h1>
 
-<!-- 👇 Telegram welcome -->
 <p id="user">Loading...</p>
 
 <button class="play" onclick="findMatch()">Play Online</button>
 <button class="solo" onclick="startSolo()">Play Solo</button>
+<button class="play" onclick="loadLeaderboard()">🏆 Leaderboard</button>
 
 <h3 id="status"></h3>
 <h2 id="timer"></h2>
@@ -69,7 +71,7 @@ cursor:pointer;
 
 <script>
 
-// ---------------- TELEGRAM USER ----------------
+// ---------------- TELEGRAM ----------------
 const tg = window.Telegram.WebApp;
 tg.ready();
 
@@ -81,158 +83,129 @@ name: tg.initDataUnsafe?.user?.first_name || "Guest"
 document.getElementById("user").innerText =
 "👋 Welcome " + user.name;
 
+// ---------------- SUPABASE ----------------
+const supabaseUrl = "YOUR_SUPABASE_URL";
+const supabaseKey = "YOUR_SUPABASE_ANON_KEY";
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+// save user
+async function saveUser(){
+await supabase.from("users").upsert({
+id: user.id,
+name: user.name
+});
+}
+saveUser();
+
 // ---------------- SOCKET ----------------
 const socket = io("YOUR_SERVER_URL");
 
-let matchId = null;
-let solo = false;
+let matchId=null;
+let solo=false;
 
-let questions = [];
-let index = 0;
-let score = 0;
-let answered = false;
+let questions=[];
+let index=0;
+let score=0;
+let answered=false;
 
 let timer;
-let time = 15;
+let time=15;
 
-// ---------------- HARD TRICK QUESTIONS ----------------
+// ---------------- QUESTIONS ----------------
 const ALL_QUESTIONS = [
-
-{q:"If all cats are animals and no animals are stones, can cats be stones?",a:["Yes","No","Sometimes","Unknown"],c:1},
-
-{q:"What comes next: 1,4,9,16,25, ?",a:["30","35","36","49"],c:2},
-
-{q:"A bat and ball cost $1.10. Bat is $1 more. Ball?",a:["$0.10","$0.05","$0.01","$0.20"],c:1},
-
-{q:"Which number missing: 2,3,5,7,11, ?",a:["12","13","14","15"],c:1},
-
-{q:"What comes once in minute twice in moment?",a:["M","Time","Echo","Sound"],c:0},
-
-{q:"Which is heavier 1kg iron or 1kg cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
-
-{q:"If yesterday was tomorrow, today is Friday. Today?",a:["Monday","Tuesday","Wednesday","Sunday"],c:1},
-
-{q:"What has keys but no locks?",a:["Car","Keyboard","Door","Safe"],c:1},
-
-{q:"Odd one: Sun, Moon, Earth, Apple",a:["Sun","Moon","Earth","Apple"],c:3},
-
-{q:"Cube root of 27?",a:["2","3","4","5"],c:1},
-
-{q:"Which is NOT real number?",a:["0","-1","√-1","3"],c:2},
-
+{q:"If all cats are animals, can cats be stones?",a:["Yes","No","Maybe","Unknown"],c:1},
+{q:"1,4,9,16,25, ?",a:["30","35","36","49"],c:2},
+{q:"Bat $1.10, bat $1 more than ball. Ball?",a:["0.10","0.05","0.01","0.20"],c:1},
+{q:"2,3,5,7,11, ?",a:["12","13","14","15"],c:1},
+{q:"Once in minute twice in moment?",a:["M","Time","Echo","Sound"],c:0},
+{q:"1kg iron vs 1kg cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
+{q:"If yesterday was tomorrow?",a:["Mon","Tue","Wed","Sun"],c:1},
+{q:"Keys but no lock?",a:["Car","Keyboard","Door","Safe"],c:1},
+{q:"Odd one: Sun Moon Earth Apple",a:["Sun","Moon","Earth","Apple"],c:3},
+{q:"Cube root 27?",a:["2","3","4","5"],c:1},
+{q:"NOT real number?",a:["0","-1","√-1","3"],c:2},
 {q:"15% of 300?",a:["30","35","40","45"],c:3},
-
-{q:"Binary of 3?",a:["10","11","01","00"],c:1},
-
-{q:"1=5,2=25,3=125,4=?",a:["256","512","625","1000"],c:2},
-
-{q:"Closest planet to sun?",a:["Earth","Venus","Mercury","Mars"],c:2},
-
+{q:"Binary 3?",a:["10","11","01","00"],c:1},
+{q:"Closest planet sun?",a:["Earth","Venus","Mercury","Mars"],c:2},
 {q:"Triangle sum?",a:["90","180","270","360"],c:1},
-
-{q:"Speed 100km in 4h?",a:["20","25","30","40"],c:1},
-
-{q:"Square root 144?",a:["10","11","12","13"],c:2},
-
-{q:"3+3=8 pattern, 4+4=?",a:["10","12","14","16"],c:2},
-
+{q:"Speed 100km 4h?",a:["20","25","30","40"],c:1},
+{q:"√144?",a:["10","11","12","13"],c:2},
 {q:"Plants absorb?",a:["O2","CO2","N2","H2"],c:1},
-
-{q:"x+y=10, x=7 y=?",a:["2","3","4","5"],c:1},
-
-{q:"Prime number?",a:["21","27","29","33"],c:2},
-
-{q:"Programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
-
+{q:"Prime?",a:["21","27","29","33"],c:2},
 {q:"Ocean largest?",a:["Atlantic","Pacific","Indian","Arctic"],c:1},
-
 {q:"Ice is?",a:["Solid","Gas","Liquid","Plasma"],c:0},
-
-{q:"Human legs?",a:["1","2","3","4"],c:1},
-
 {q:"UK capital?",a:["London","Paris","Rome","Berlin"],c:0},
-
 {q:"Sun is?",a:["Planet","Star","Moon","Rock"],c:1},
-
 {q:"0/5=?",a:["0","5","1","undefined"],c:0},
-
-{q:"100-99+1=?",a:["0","1","2","3"],c:2}
-
+{q:"100-99+1=?",a:["0","1","2","3"],c:2},
+{q:"Human legs?",a:["1","2","3","4"],c:1},
+{q:"Programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
+{q:"x+y=10 x=7 y?",a:["2","3","4","5"],c:1},
+{q:"Square 12?",a:["144","121","132","156"],c:0},
+{q:"Sun closest planet?",a:["Mercury","Venus","Earth","Mars"],c:0}
 ];
-
-// ---------------- SHUFFLE ----------------
-function shuffle(a){
-return [...a].sort(()=>Math.random()-0.5);
-}
-
-function getQuestions(){
-return shuffle(ALL_QUESTIONS).slice(0,10);
-}
 
 // ---------------- SOLO ----------------
 function startSolo(){
 
-solo = true;
-matchId = null;
+solo=true;
+matchId=null;
 
-questions = getQuestions();
-index = 0;
-score = 0;
+questions=[...ALL_QUESTIONS].sort(()=>Math.random()-0.5).slice(0,10);
+index=0;
+score=0;
 
-document.getElementById("status").innerText = "Solo Mode";
+document.getElementById("status").innerText="Solo Mode";
 
 loadQuestion();
 }
 
 // ---------------- ONLINE ----------------
 function findMatch(){
-
-solo = false;
+solo=false;
 
 socket.emit("find_match",{
-id: user.id,
-name: user.name
+id:user.id,
+name:user.name
 });
 
-document.getElementById("status").innerText = "Searching...";
+document.getElementById("status").innerText="Searching...";
 }
 
-// ---------------- MATCH FOUND ----------------
 socket.on("match_found",(data)=>{
-matchId = data.matchId;
-document.getElementById("status").innerText = "Match Found!";
+matchId=data.matchId;
+document.getElementById("status").innerText="Match Found!";
 });
 
-// ---------------- ONLINE QUESTION ----------------
 socket.on("question",(q)=>{
 if(solo) return;
 loadOnline(q);
 });
 
-// ---------------- LOAD SOLO ----------------
+// ---------------- SOLO QUESTION ----------------
 function loadQuestion(){
 
-if(index >= questions.length){
+if(index>=questions.length){
 return endGame();
 }
 
-answered = false;
-time = 15;
+answered=false;
+time=15;
 
 startTimer();
 
-const q = questions[index];
+const q=questions[index];
 
-document.getElementById("question").innerText = q.q;
-document.getElementById("answers").innerHTML = "";
+document.getElementById("question").innerText=q.q;
+document.getElementById("answers").innerHTML="";
 
 q.a.forEach((opt,i)=>{
 
-const btn = document.createElement("button");
-btn.className = "answer";
-btn.innerText = opt;
+const btn=document.createElement("button");
+btn.className="answer";
+btn.innerText=opt;
 
-btn.onclick = ()=>answer(i);
+btn.onclick=()=>answer(i);
 
 document.getElementById("answers").appendChild(btn);
 
@@ -240,32 +213,32 @@ document.getElementById("answers").appendChild(btn);
 
 }
 
-// ---------------- LOAD ONLINE ----------------
+// ---------------- ONLINE QUESTION ----------------
 function loadOnline(q){
 
-answered = false;
-time = 15;
+answered=false;
+time=15;
 
 startTimer();
 
-document.getElementById("question").innerText = q.q;
-document.getElementById("answers").innerHTML = "";
+document.getElementById("question").innerText=q.q;
+document.getElementById("answers").innerHTML="";
 
 q.options.forEach((opt,i)=>{
 
-const btn = document.createElement("button");
-btn.className = "answer";
-btn.innerText = opt;
+const btn=document.createElement("button");
+btn.className="answer";
+btn.innerText=opt;
 
-btn.onclick = ()=>{
+btn.onclick=()=>{
 
-if(answered) return;
-answered = true;
+if(answered)return;
+answered=true;
 
 socket.emit("answer",{
 matchId,
-userId: user.id,
-answer: i
+userId:user.id,
+answer:i
 });
 
 };
@@ -280,9 +253,9 @@ document.getElementById("answers").appendChild(btn);
 function answer(i){
 
 if(answered) return;
-answered = true;
+answered=true;
 
-if(i === questions[index].c) score++;
+if(i===questions[index].c) score++;
 
 index++;
 loadQuestion();
@@ -293,21 +266,21 @@ function startTimer(){
 
 clearInterval(timer);
 
-document.getElementById("timer").innerText = "⏳ " + time;
+document.getElementById("timer").innerText="⏳ "+time;
 
-timer = setInterval(()=>{
+timer=setInterval(()=>{
 
 time--;
-document.getElementById("timer").innerText = "⏳ " + time;
+document.getElementById("timer").innerText="⏳ "+time;
 
-if(time <= 0){
+if(time<=0){
 clearInterval(timer);
 
 if(solo){
 index++;
 loadQuestion();
 }else{
-answered = true;
+answered=true;
 }
 }
 
@@ -315,34 +288,60 @@ answered = true;
 
 }
 
-// ---------------- END GAME SOLO ----------------
+// ---------------- END GAME ----------------
 function endGame(){
 
-document.getElementById("question").innerHTML = "";
-document.getElementById("answers").innerHTML = "";
-document.getElementById("timer").innerHTML = "";
+document.getElementById("question").innerHTML="";
+document.getElementById("answers").innerHTML="";
+document.getElementById("timer").innerHTML="";
 
-let percent = Math.round((score/questions.length)*100);
+let percent=Math.round((score/questions.length)*100);
 
-document.getElementById("result").innerHTML = `
+document.getElementById("result").innerHTML=`
 <h2>🏁 Game Over</h2>
 <h3>Score: ${score}/10</h3>
 <h2>${percent}% IQ Level</h2>
 `;
+
+updateScore(score);
 }
 
-// ---------------- ONLINE END ----------------
-socket.on("match_end",(data)=>{
+// ---------------- SUPABASE SCORE ----------------
+async function updateScore(score){
 
-document.getElementById("question").innerHTML = "";
-document.getElementById("answers").innerHTML = "";
-document.getElementById("timer").innerHTML = "";
+let { data } = await supabase
+.from("users")
+.select("*")
+.eq("id", user.id)
+.single();
 
-document.getElementById("result").innerHTML = `
-<h2>🏁 Match Finished</h2>
-<h3>Winner: ${data.winner}</h3>
-`;
+if(data){
+
+await supabase.from("users").update({
+score: data.score + score,
+games: data.games + 1
+}).eq("id", user.id);
+
+}
+}
+
+// ---------------- LEADERBOARD ----------------
+async function loadLeaderboard(){
+
+let { data } = await supabase
+.from("users")
+.select("*")
+.order("score",{ascending:false})
+.limit(10);
+
+let html="<h2>🏆 Leaderboard</h2>";
+
+data.forEach((u,i)=>{
+html+=`<p>${i+1}. ${u.name} - ${u.score}</p>`;
 });
+
+document.getElementById("result").innerHTML=html;
+}
 
 </script>
 
