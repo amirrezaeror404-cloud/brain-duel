@@ -2,12 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Brain Duel</title>
-
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
@@ -37,9 +33,9 @@ font-size:16px;
 cursor:pointer;
 }
 
-.play{background:#38bdf8;color:white;}
 .solo{background:#22c55e;color:white;}
 .answer{background:white;color:black;}
+.play{background:#38bdf8;color:white;}
 
 #timer{font-size:22px;color:#facc15;}
 #user{margin-bottom:10px;color:#38bdf8;font-weight:bold;}
@@ -53,11 +49,9 @@ cursor:pointer;
 
 <h1>🧠 Brain Duel</h1>
 
-<p id="user">Loading user...</p>
+<p id="user">Welcome Player</p>
 
-<button class="play" onclick="findMatch()">Play Online</button>
-<button class="solo" onclick="startSolo()">Play Solo</button>
-<button class="play" onclick="loadLeaderboard()">🏆 Leaderboard</button>
+<button class="solo" onclick="startGame()">Play Solo</button>
 
 <h3 id="status"></h3>
 <h2 id="timer"></h2>
@@ -71,145 +65,48 @@ cursor:pointer;
 
 <script>
 
-console.log("Brain Duel booting...");
-
-// ---------------- SAFE TELEGRAM ----------------
-const tg = window.Telegram?.WebApp || null;
-
-try{
-tg?.ready?.();
-}catch(e){}
-
-// fallback user (NEVER BREAKS)
-let user = {
-id: Math.floor(Math.random()*999999),
-name: "Guest"
+// ---------------- SIMPLE USER ----------------
+const user = {
+name: "Player"
 };
 
-try{
-if(tg && tg.initDataUnsafe && tg.initDataUnsafe.user){
-user.id = tg.initDataUnsafe.user.id;
-user.name = tg.initDataUnsafe.user.first_name;
-}
-}catch(e){
-console.log("Telegram error safe:", e);
-}
+document.getElementById("user").innerText = "👋 Welcome " + user.name;
 
-document.getElementById("user").innerText =
-"👋 Welcome " + user.name;
-
-// ---------------- SUPABASE SAFE ----------------
-let supabase = null;
-
-try{
-const supabaseUrl = "YOUR_SUPABASE_URL";
-const supabaseKey = "YOUR_SUPABASE_ANON_KEY";
-supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-}catch(e){
-console.log("Supabase disabled:", e);
-}
-
-// save user (NON-BLOCKING)
-async function saveUser(){
-if(!supabase) return;
-
-try{
-await supabase.from("users").upsert({
-id: user.id,
-name: user.name
-});
-}catch(e){
-console.log("saveUser error:", e);
-}
-}
-
-saveUser();
-
-// ---------------- SOCKET SAFE ----------------
-let socket = null;
-
-try{
-socket = io("YOUR_SERVER_URL");
-}catch(e){
-console.log("Socket disabled");
-}
-
-// ---------------- GAME STATE ----------------
-let matchId = null;
-let solo = false;
-
+// ---------------- GAME DATA ----------------
 let questions = [];
 let index = 0;
 let score = 0;
-let answered = false;
-
 let timer;
 let time = 15;
+let answered = false;
 
-// ---------------- QUESTIONS ----------------
+// ---------------- QUESTIONS (SAFE & HARDER) ----------------
 const ALL_QUESTIONS = [
-{q:"If all cats are animals, can cats be stones?",a:["Yes","No","Maybe","Unknown"],c:1},
-{q:"1,4,9,16,25, ?",a:["30","35","36","49"],c:2},
-{q:"Bat $1.10, bat $1 more than ball. Ball?",a:["0.10","0.05","0.01","0.20"],c:1},
-{q:"2,3,5,7,11, ?",a:["12","13","14","15"],c:1},
-{q:"Once in minute twice in moment?",a:["M","Time","Echo","Sound"],c:0},
-{q:"1kg iron vs cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
-{q:"Keys but no lock?",a:["Car","Keyboard","Door","Safe"],c:1},
-{q:"Cube root 27?",a:["2","3","4","5"],c:1},
-{q:"15% of 300?",a:["30","35","40","45"],c:3},
-{q:"Binary 3?",a:["10","11","01","00"],c:1},
-{q:"Triangle sum?",a:["90","180","270","360"],c:1},
-{q:"√144?",a:["10","11","12","13"],c:2},
-{q:"Ocean largest?",a:["Atlantic","Pacific","Indian","Arctic"],c:1},
-{q:"Ice is?",a:["Solid","Gas","Liquid","Plasma"],c:0},
-{q:"UK capital?",a:["London","Paris","Rome","Berlin"],c:0},
-{q:"Sun is?",a:["Planet","Star","Moon","Rock"],c:1},
-{q:"0/5=?",a:["0","5","1","undefined"],c:0},
-{q:"Human legs?",a:["1","2","3","4"],c:1},
-{q:"Programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
-{q:"x+y=10 x=7 y?",a:["2","3","4","5"],c:1},
-{q:"Square 12?",a:["144","121","132","156"],c:0}
+{q:"What comes once in minute, twice in moment?",a:["M","Time","Echo","Sound"],c:0},
+{q:"If 2+2=10 in base 3, what is 2+2 in base 10?",a:["4","10","6","8"],c:0},
+{q:"Which number is prime?",a:["21","27","29","33"],c:2},
+{q:"What has keys but no locks?",a:["Car","Keyboard","Door","Safe"],c:1},
+{q:"Which is heavier 1kg iron or 1kg cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
+{q:"Square root of 144?",a:["10","11","12","13"],c:2},
+{q:"If all roses are flowers, are all flowers roses?",a:["Yes","No","Maybe","Unknown"],c:1},
+{q:"Binary of 3?",a:["10","11","01","00"],c:1},
+{q:"0 divided by any number?",a:["0","1","undefined","infinite"],c:0},
+{q:"Which planet is closest to sun?",a:["Earth","Venus","Mercury","Mars"],c:2}
 ];
 
-// ---------------- SOLO ----------------
-function startSolo(){
+// ---------------- START GAME ----------------
+function startGame(){
 
-solo = true;
-matchId = null;
-
-questions = ALL_QUESTIONS.sort(()=>Math.random()-0.5).slice(0,10);
+questions = shuffle(ALL_QUESTIONS).slice(0,5);
 index = 0;
 score = 0;
 
-document.getElementById("status").innerText = "Solo Mode";
+document.getElementById("status").innerText = "Game Started";
 
 loadQuestion();
 }
 
-// ---------------- ONLINE ----------------
-function findMatch(){
-
-solo = false;
-
-if(socket){
-socket.emit("find_match",{id:user.id,name:user.name});
-}
-
-document.getElementById("status").innerText = "Searching...";
-}
-
-if(socket){
-socket.on("match_found",(data)=>{
-matchId = data.matchId;
-document.getElementById("status").innerText = "Match Found!";
-});
-
-socket.on("question",(q)=>{
-if(!solo) loadOnline(q);
-});
-}
-
-// ---------------- SOLO QUESTION ----------------
+// ---------------- LOAD QUESTION ----------------
 function loadQuestion(){
 
 if(index >= questions.length){
@@ -227,6 +124,7 @@ document.getElementById("question").innerText = q.q;
 document.getElementById("answers").innerHTML = "";
 
 q.a.forEach((opt,i)=>{
+
 let btn = document.createElement("button");
 btn.className = "answer";
 btn.innerText = opt;
@@ -234,40 +132,7 @@ btn.innerText = opt;
 btn.onclick = ()=>answer(i);
 
 document.getElementById("answers").appendChild(btn);
-});
-}
 
-// ---------------- ONLINE QUESTION ----------------
-function loadOnline(q){
-
-if(!q || !q.options) return;
-
-answered = false;
-time = 15;
-
-startTimer();
-
-document.getElementById("question").innerText = q.q;
-document.getElementById("answers").innerHTML = "";
-
-q.options.forEach((opt,i)=>{
-let btn = document.createElement("button");
-btn.className = "answer";
-btn.innerText = opt;
-
-btn.onclick = ()=>{
-
-if(answered) return;
-answered = true;
-
-socket?.emit?.("answer",{
-matchId,
-userId:user.id,
-answer:i
-});
-};
-
-document.getElementById("answers").appendChild(btn);
 });
 }
 
@@ -277,7 +142,9 @@ function answer(i){
 if(answered) return;
 answered = true;
 
-if(i === questions[index].c) score++;
+if(i === questions[index].c){
+score++;
+}
 
 index++;
 loadQuestion();
@@ -297,19 +164,14 @@ document.getElementById("timer").innerText = "⏳ " + time;
 
 if(time <= 0){
 clearInterval(timer);
-
-if(solo){
 index++;
 loadQuestion();
-}else{
-answered = true;
-}
 }
 
 },1000);
 }
 
-// ---------------- END ----------------
+// ---------------- END GAME ----------------
 function endGame(){
 
 document.getElementById("question").innerHTML = "";
@@ -319,67 +181,16 @@ document.getElementById("timer").innerHTML = "";
 let percent = Math.round((score/questions.length)*100);
 
 document.getElementById("result").innerHTML = `
-<h2>🏁 Game Over</h2>
-<h3>Score: ${score}/10</h3>
+<h2>🏁 Finished</h2>
+<h3>Score: ${score}/${questions.length}</h3>
 <h2>${percent}% IQ Level</h2>
+<button onclick="startGame()" class="play">Play Again</button>
 `;
-
-updateScore();
 }
 
-// ---------------- SUPABASE SCORE SAFE ----------------
-async function updateScore(){
-
-if(!supabase) return;
-
-try{
-
-let { data } = await supabase
-.from("users")
-.select("*")
-.eq("id", user.id)
-.single();
-
-if(data){
-
-await supabase.from("users").update({
-score: (data.score||0) + score,
-games: (data.games||0) + 1
-}).eq("id", user.id);
-
-}
-
-}catch(e){
-console.log("updateScore error:", e);
-}
-
-}
-
-// ---------------- LEADERBOARD SAFE ----------------
-async function loadLeaderboard(){
-
-if(!supabase) return;
-
-try{
-
-let { data } = await supabase
-.from("users")
-.select("*")
-.order("score",{ascending:false})
-.limit(10);
-
-let html = "<h2>🏆 Leaderboard</h2>";
-
-data?.forEach((u,i)=>{
-html += `<p>${i+1}. ${u.name} - ${u.score}</p>`;
-});
-
-document.getElementById("result").innerHTML = html;
-
-}catch(e){
-console.log("leaderboard error:", e);
-}
-
+// ---------------- SHUFFLE ----------------
+function shuffle(a){
+return [...a].sort(()=>Math.random()-0.5);
 }
 
 </script>
