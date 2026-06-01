@@ -1,13 +1,170 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Brain Duel</title>
+
+<style>
+body{
+background:#111;
+color:white;
+font-family:Arial;
+text-align:center;
+padding:20px;
+}
+
+button{
+width:100%;
+max-width:300px;
+padding:15px;
+margin:10px auto;
+display:block;
+font-size:18px;
+border:none;
+border-radius:12px;
+cursor:pointer;
+}
+
+h1{
+color:#00e5ff;
+}
+</style>
+
 </head>
 <body>
 
 <h1>🧠 Brain Duel</h1>
 
-<p>Game is coming soon...</p>
+<h2 id="question"></h2>
+
+<div id="answers"></div>
+
+<div id="result"></div>
+
+<script>
+
+const questions=[
+
+{
+question:"2,4,8,16,?",
+answers:["24","32","30","40"],
+correct:1
+},
+
+{
+question:"How many sides does a hexagon have?",
+answers:["5","6","7","8"],
+correct:1
+},
+
+{
+question:"What is 15 + 18 ?",
+answers:["32","33","34","35"],
+correct:1
+},
+
+{
+question:"Which is heavier?",
+answers:["1kg Iron","1kg Cotton","Same","None"],
+correct:2
+},
+
+{
+question:"What comes after B?",
+answers:["A","D","C","E"],
+correct:2
+}
+
+];
+
+let current=0;
+let score=0;
+
+const question=document.getElementById("question");
+const answers=document.getElementById("answers");
+const result=document.getElementById("result");
+
+function loadQuestion(){
+
+let q=questions[current];
+
+question.innerText=q.question;
+
+answers.innerHTML="";
+
+q.answers.forEach((answer,index)=>{
+
+let btn=document.createElement("button");
+
+btn.innerText=answer;
+
+btn.onclick=()=>{
+
+if(index===q.correct){
+score++;
+}
+
+current++;
+
+if(current<questions.length){
+loadQuestion();
+}
+else{
+showResult();
+}
+
+};
+
+answers.appendChild(btn);
+
+});
+
+}
+
+function showResult(){
+
+question.innerHTML="";
+answers.innerHTML="";
+
+let brainScore=80+(score*12);
+
+let rank="";
+
+if(brainScore>=140){
+rank="Genius 🧠";
+}
+else if(brainScore>=120){
+rank="Logical Thinker 🏆";
+}
+else if(brainScore>=100){
+rank="Quick Mind ⚡";
+}
+else{
+rank="Keep Training 💪";
+}
+
+result.innerHTML=`
+
+<h2>🧠 Brain Duel Result</h2>
+
+<h1>${brainScore}</h1>
+
+<p>${rank}</p>
+
+<p>You answered ${score} of ${questions.length} correctly.</p>
+
+<button onclick="location.reload()">
+Play Again
+</button>
+
+`;
+
+}
+
+loadQuestion();
+
+</script>
 
 </body>
 </html>
