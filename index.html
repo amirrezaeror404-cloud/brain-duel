@@ -39,6 +39,12 @@ cursor:pointer;
 .play{background:#38bdf8;color:white;}
 .solo{background:#22c55e;color:white;}
 .answer{background:white;color:black;}
+
+#timer{
+font-size:22px;
+margin:10px 0;
+color:#facc15;
+}
 </style>
 
 </head>
@@ -46,7 +52,7 @@ cursor:pointer;
 
 <div class="container">
 
-<h1>🧠 Brain Duel HARD</h1>
+<h1>🧠 Brain Duel HARD+</h1>
 
 <p id="user"></p>
 
@@ -89,43 +95,70 @@ let score=0;
 let answered=false;
 
 let timer;
-let time=10;
+let time=15; // ⬅️ 15 seconds
 
-// ---------------- ALL QUESTIONS (HARD) ----------------
+// ---------------- HARD + FUN QUESTIONS ----------------
 const ALL_QUESTIONS = [
 
-{q:"If 3x=15, x=?",a:["3","5","7","9"],c:1},
-{q:"Next number: 2,6,12,20,30,?",a:["40","41","42","44"],c:1},
-{q:"Cube root of 64?",a:["2","3","4","8"],c:2},
-{q:"0 factorial?",a:["0","1","undefined","10"],c:1},
-{q:"Binary of 2?",a:["10","11","01","00"],c:0},
-{q:"If today Monday, after 10 days?",a:["Wednesday","Thursday","Friday","Sunday"],c:1},
-{q:"Which is NOT real number?",a:["0","-1","√-1","3"],c:2},
-{q:"15% of 200?",a:["20","25","30","35"],c:2},
-{q:"Odd one: Apple Banana Carrot Mango",a:["Apple","Banana","Carrot","Mango"],c:2},
-{q:"If 8=64, 7=49, 6=?",a:["30","36","42","48"],c:1},
+{q:"If all cats are animals and some animals are dogs, can we say all cats are dogs?",a:["Yes","No","Sometimes","Cannot determine"],c:1},
 
-{q:"Prime number?",a:["21","27","29","33"],c:2},
-{q:"Square of 13?",a:["144","156","169","196"],c:2},
-{q:"Gas in air most?",a:["Oxygen","Nitrogen","CO2","Hydrogen"],c:1},
-{q:"100-1-1-1=?",a:["997","998","999","996"],c:0},
-{q:"Speed 100km in 4h?",a:["20","25","30","40"],c:1},
-{q:"Which is programming?",a:["HTML","Python","Photoshop","Excel"],c:1},
-{q:"Clock angle 3:15?",a:["0","7.5","30","45"],c:1},
-{q:"If 1=3,2=6,3=9 then 4=?",a:["10","11","12","13"],c:2},
-{q:"Which planet rings?",a:["Earth","Mars","Saturn","Venus"],c:2},
-{q:"Sun is?",a:["Planet","Star","Moon","Rock"],c:1},
+{q:"What is next? 1, 4, 9, 16, 25, ?",a:["30","35","36","49"],c:2},
 
-{q:"1 hour=?",a:["30","60","90","100"],c:1},
-{q:"Ice is?",a:["Solid","Gas","Liquid","Plasma"],c:0},
-{q:"Which heavier 1kg iron/cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
-{q:"Triangle angles sum?",a:["90","180","270","360"],c:1},
-{q:"Human legs?",a:["1","2","3","4"],c:1},
-{q:"Capital UK?",a:["London","Paris","Rome","Berlin"],c:0},
-{q:"Water formula?",a:["CO2","H2O","O2","NaCl"],c:1},
-{q:"Fastest animal?",a:["Lion","Cheetah","Tiger","Horse"],c:1},
-{q:"5x5=?",a:["20","25","30","15"],c:1},
-{q:"2+2=?",a:["3","4","5","6"],c:1}
+{q:"A bat and ball cost $1.10. Bat costs $1 more than ball. Ball cost?",a:["$0.10","$0.05","$0.01","$0.20"],c:1},
+
+{q:"Which number is missing? 2, 3, 5, 7, 11, ?",a:["12","13","14","15"],c:1},
+
+{q:"If 5 machines make 5 items in 5 minutes, 1 machine makes 1 item in?",a:["1 min","5 min","25 min","10 min"],c:1},
+
+{q:"Which is heavier? 1kg iron or 1kg feathers?",a:["Iron","Feathers","Same","Depends"],c:2},
+
+{q:"Reverse of 12345?",a:["54321","15243","12354","45123"],c:0},
+
+{q:"Odd one out: 2, 3, 5, 9, 11",a:["2","3","5","9"],c:3},
+
+{q:"Cube root of 27?",a:["2","3","4","5"],c:1},
+
+{q:"If x=2, what is x² + x?",a:["4","6","8","10"],c:1},
+
+{q:"What comes next? A, C, F, J, O, ?",a:["T","U","V","W"],c:1},
+
+{q:"Which is NOT a prime number?",a:["2","3","9","7"],c:2},
+
+{q:"If today is Friday, after 13 days?",a:["Monday","Tuesday","Wednesday","Thursday"],c:2},
+
+{q:"What is 15% of 300?",a:["30","35","40","45"],c:3},
+
+{q:"Binary of 3?",a:["10","11","01","00"],c:1},
+
+{q:"If 1=5, 2=25, 3=125, 4=?",a:["256","512","625","1000"],c:2},
+
+{q:"Which planet is closest to sun?",a:["Earth","Venus","Mercury","Mars"],c:2},
+
+{q:"Which gas do plants absorb?",a:["Oxygen","CO2","Nitrogen","Hydrogen"],c:1},
+
+{q:"Angle sum of triangle?",a:["90","180","270","360"],c:1},
+
+{q:"What is 0/5?",a:["0","5","1","undefined"],c:0},
+
+{q:"Which is programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
+
+{q:"Which is fastest internet unit?",a:["Mbps","Kg","Km","Liter"],c:0},
+
+{q:"If 10x=100, x=?",a:["5","10","15","20"],c:1},
+
+{q:"Square root of 144?",a:["10","11","12","13"],c:2},
+
+{q:"Which is liquid?",a:["Iron","Water","Stone","Wood"],c:1},
+
+{q:"Which is largest ocean?",a:["Atlantic","Pacific","Indian","Arctic"],c:1},
+
+{q:"If 3+3=8 in pattern, 4+4=?",a:["10","12","14","16"],c:2},
+
+{q:"Which is odd: Sun, Moon, Earth, Apple",a:["Sun","Moon","Earth","Apple"],c:3},
+
+{q:"If x+y=10 and x=7, y=?",a:["2","3","4","5"],c:1},
+
+{q:"What is 100-99+1?",a:["0","1","2","3"],c:2}
 
 ];
 
@@ -138,7 +171,7 @@ function getQuestions(){
 return shuffle(ALL_QUESTIONS).slice(0,10);
 }
 
-// ---------------- MODE SELECT ----------------
+// ---------------- MODE ----------------
 function startSolo(){
 
 solo=true;
@@ -188,7 +221,8 @@ return endGame();
 }
 
 answered=false;
-time=10;
+time=15;
+
 startTimer();
 
 const q=questions[index];
@@ -214,7 +248,8 @@ document.getElementById("answers").appendChild(btn);
 function loadOnlineQuestion(q){
 
 answered=false;
-time=10;
+time=15;
+
 startTimer();
 
 document.getElementById("question").innerText=q.q;
@@ -262,12 +297,12 @@ function startTimer(){
 
 clearInterval(timer);
 
-document.getElementById("timer").innerText="Time: "+time;
+document.getElementById("timer").innerText="⏳ Time: "+time;
 
 timer=setInterval(()=>{
 
 time--;
-document.getElementById("timer").innerText="Time: "+time;
+document.getElementById("timer").innerText="⏳ Time: "+time;
 
 if(time<=0){
 clearInterval(timer);
@@ -291,9 +326,12 @@ document.getElementById("question").innerHTML="";
 document.getElementById("answers").innerHTML="";
 document.getElementById("timer").innerHTML="";
 
+let percent=Math.round((score/questions.length)*100);
+
 document.getElementById("result").innerHTML=`
-<h2>Game Over</h2>
-<h3>Score: ${score}/${questions.length}</h3>
+<h2>🏁 Game Over</h2>
+<h3>Score: ${score}/10</h3>
+<h2>${percent}% IQ Score</h2>
 `;
 }
 
@@ -305,7 +343,7 @@ document.getElementById("answers").innerHTML="";
 document.getElementById("timer").innerHTML="";
 
 document.getElementById("result").innerHTML=`
-<h2>Game Over</h2>
+<h2>🏁 Match Finished</h2>
 <h3>Winner: ${data.winner}</h3>
 `;
 });
