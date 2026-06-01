@@ -6,6 +6,7 @@
 <title>Brain Duel</title>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <style>
 body{
@@ -47,7 +48,10 @@ cursor:pointer;
 
 <h1>🧠 Brain Duel HARD</h1>
 
-<button class="play" onclick="startSolo()">Play Solo</button>
+<p id="user"></p>
+
+<button class="play" onclick="findMatch()">Play Online</button>
+<button class="solo" onclick="startSolo()">Play Solo</button>
 
 <h3 id="status"></h3>
 <h2 id="timer"></h2>
@@ -61,104 +65,122 @@ cursor:pointer;
 
 <script>
 
+// ---------------- USER ----------------
 const tg = window.Telegram.WebApp;
 tg.ready();
+
+const user = {
+id: tg.initDataUnsafe?.user?.id || Math.floor(Math.random()*999999),
+name: tg.initDataUnsafe?.user?.first_name || "Guest"
+};
+
+document.getElementById("user").innerText =
+"👋 Welcome " + user.name;
+
+// ---------------- SOCKET ----------------
+const socket = io("YOUR_SERVER_URL");
+
+let matchId=null;
+let solo=false;
 
 let questions=[];
 let index=0;
 let score=0;
 let answered=false;
+
 let timer;
 let time=10;
 
-// ---------------- HARD QUESTIONS ----------------
+// ---------------- ALL QUESTIONS (HARD) ----------------
 const ALL_QUESTIONS = [
 
-{q:"If all Bloops are Razzies and all Razzies are Lazzies, are all Bloops definitely Lazzies?",a:["Yes","No","Sometimes","Cannot determine"],c:0},
-
-{q:"What is the next number? 2, 6, 12, 20, 30, ?",a:["40","41","42","36"],c:1},
-
-{q:"Which number is missing? 1, 4, 9, 16, ?, 36",a:["20","24","25","30"],c:2},
-
-{q:"A train travels 60 km in 1 hour. How far in 2.5 hours?",a:["120","150","180","200"],c:1},
-
-{q:"Which is odd one out? Apple, Banana, Carrot, Mango",a:["Apple","Banana","Carrot","Mango"],c:2},
-
-{q:"If 3x = 15, what is x?",a:["3","5","7","9"],c:1},
-
-{q:"What comes next? Z, X, V, T, ?",a:["R","S","U","Q"],c:0},
-
-{q:"If today is Monday, what day is after 10 days?",a:["Wednesday","Thursday","Friday","Sunday"],c:1},
-
-{q:"Which is heavier? 1kg iron or 1kg cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
-
-{q:"A clock shows 3:15. Angle between hands?",a:["0","7.5","30","45"],c:1},
-
-{q:"If 5 workers finish job in 10 days, 10 workers?",a:["5","10","15","20"],c:0},
-
-{q:"Find odd: 2, 3, 5, 9, 11",a:["2","3","5","9"],c:3},
-
+{q:"If 3x=15, x=?",a:["3","5","7","9"],c:1},
+{q:"Next number: 2,6,12,20,30,?",a:["40","41","42","44"],c:1},
 {q:"Cube root of 64?",a:["2","3","4","8"],c:2},
-
-{q:"What is 15% of 200?",a:["20","25","30","35"],c:2},
-
-{q:"Which is not a programming language?",a:["Python","Java","HTML","C++"],c:2},
-
-{q:"Which planet has rings?",a:["Earth","Mars","Saturn","Venus"],c:2},
-
-{q:"If 8 = 64, 7 = 49, 6 = ?",a:["30","36","42","48"],c:1},
-
-{q:"What is 0 factorial (0!)?",a:["0","1","Undefined","10"],c:1},
-
-{q:"Which word is spelled correctly?",a:["Recieve","Receive","Recive","Receeve"],c:1},
-
-{q:"If all cats are animals, are all animals cats?",a:["Yes","No","Sometimes","Unknown"],c:1},
-
-{q:"What is 1000 - 1 - 1 - 1?",a:["997","998","999","1000"],c:0},
-
-{q:"Which is prime?",a:["21","27","29","33"],c:2},
-
-{q:"Which gas is most abundant in air?",a:["Oxygen","Nitrogen","CO2","Hydrogen"],c:1},
-
-{q:"If x+y=10 and x=4, y=?",a:["4","5","6","7"],c:2},
-
-{q:"Which is square of 13?",a:["144","156","169","196"],c:2},
-
-{q:"If a triangle has 180°, 2 angles 60°, third?",a:["60","90","120","30"],c:0},
-
-{q:"Which is NOT real number?",a:["0","-1","√-1","3.5"],c:2},
-
-{q:"Speed = distance/time. If distance=100, time=4?",a:["20","25","30","40"],c:1},
-
+{q:"0 factorial?",a:["0","1","undefined","10"],c:1},
 {q:"Binary of 2?",a:["10","11","01","00"],c:0},
+{q:"If today Monday, after 10 days?",a:["Wednesday","Thursday","Friday","Sunday"],c:1},
+{q:"Which is NOT real number?",a:["0","-1","√-1","3"],c:2},
+{q:"15% of 200?",a:["20","25","30","35"],c:2},
+{q:"Odd one: Apple Banana Carrot Mango",a:["Apple","Banana","Carrot","Mango"],c:2},
+{q:"If 8=64, 7=49, 6=?",a:["30","36","42","48"],c:1},
 
-{q:"Which is largest?",a:["0.9","0.11","0.101","0.99"],c:3},
+{q:"Prime number?",a:["21","27","29","33"],c:2},
+{q:"Square of 13?",a:["144","156","169","196"],c:2},
+{q:"Gas in air most?",a:["Oxygen","Nitrogen","CO2","Hydrogen"],c:1},
+{q:"100-1-1-1=?",a:["997","998","999","996"],c:0},
+{q:"Speed 100km in 4h?",a:["20","25","30","40"],c:1},
+{q:"Which is programming?",a:["HTML","Python","Photoshop","Excel"],c:1},
+{q:"Clock angle 3:15?",a:["0","7.5","30","45"],c:1},
+{q:"If 1=3,2=6,3=9 then 4=?",a:["10","11","12","13"],c:2},
+{q:"Which planet rings?",a:["Earth","Mars","Saturn","Venus"],c:2},
+{q:"Sun is?",a:["Planet","Star","Moon","Rock"],c:1},
 
-{q:"If 1=3, 2=6, 3=9 then 4=?",a:["10","11","12","13"],c:2}
+{q:"1 hour=?",a:["30","60","90","100"],c:1},
+{q:"Ice is?",a:["Solid","Gas","Liquid","Plasma"],c:0},
+{q:"Which heavier 1kg iron/cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
+{q:"Triangle angles sum?",a:["90","180","270","360"],c:1},
+{q:"Human legs?",a:["1","2","3","4"],c:1},
+{q:"Capital UK?",a:["London","Paris","Rome","Berlin"],c:0},
+{q:"Water formula?",a:["CO2","H2O","O2","NaCl"],c:1},
+{q:"Fastest animal?",a:["Lion","Cheetah","Tiger","Horse"],c:1},
+{q:"5x5=?",a:["20","25","30","15"],c:1},
+{q:"2+2=?",a:["3","4","5","6"],c:1}
 
 ];
 
-// shuffle
+// ---------------- SHUFFLE ----------------
 function shuffle(a){
 return [...a].sort(()=>Math.random()-0.5);
 }
 
-// 10 random questions
 function getQuestions(){
 return shuffle(ALL_QUESTIONS).slice(0,10);
 }
 
-// ---------------- SOLO ----------------
+// ---------------- MODE SELECT ----------------
 function startSolo(){
+
+solo=true;
+matchId=null;
 
 questions=getQuestions();
 index=0;
 score=0;
 
+document.getElementById("status").innerText="Solo Mode";
+
 loadQuestion();
 }
 
-// ---------------- LOAD ----------------
+// ---------------- ONLINE ----------------
+function findMatch(){
+
+solo=false;
+
+socket.emit("find_match",{
+id:user.id,
+name:user.name
+});
+
+document.getElementById("status").innerText="Searching...";
+}
+
+// ---------------- MATCH FOUND ----------------
+socket.on("match_found",(data)=>{
+matchId=data.matchId;
+document.getElementById("status").innerText="Match Found!";
+});
+
+// ---------------- ONLINE QUESTION ----------------
+socket.on("question",(q)=>{
+
+if(solo) return;
+
+loadOnlineQuestion(q);
+});
+
+// ---------------- LOAD SOLO ----------------
 function loadQuestion(){
 
 if(index>=questions.length){
@@ -167,7 +189,6 @@ return endGame();
 
 answered=false;
 time=10;
-
 startTimer();
 
 const q=questions[index];
@@ -189,7 +210,42 @@ document.getElementById("answers").appendChild(btn);
 
 }
 
-// ---------------- ANSWER ----------------
+// ---------------- LOAD ONLINE ----------------
+function loadOnlineQuestion(q){
+
+answered=false;
+time=10;
+startTimer();
+
+document.getElementById("question").innerText=q.q;
+document.getElementById("answers").innerHTML="";
+
+q.options.forEach((opt,i)=>{
+
+const btn=document.createElement("button");
+btn.className="answer";
+btn.innerText=opt;
+
+btn.onclick=()=>{
+
+if(answered)return;
+answered=true;
+
+socket.emit("answer",{
+matchId,
+userId:user.id,
+answer:i
+});
+
+};
+
+document.getElementById("answers").appendChild(btn);
+
+});
+
+}
+
+// ---------------- ANSWER SOLO ----------------
 function answer(i){
 
 if(answered)return;
@@ -215,29 +271,44 @@ document.getElementById("timer").innerText="Time: "+time;
 
 if(time<=0){
 clearInterval(timer);
+
+if(solo){
 index++;
 loadQuestion();
+}else{
+answered=true;
+}
 }
 
 },1000);
 
 }
 
-// ---------------- END ----------------
+// ---------------- END SOLO ----------------
 function endGame(){
 
 document.getElementById("question").innerHTML="";
 document.getElementById("answers").innerHTML="";
 document.getElementById("timer").innerHTML="";
 
-let percent=Math.round((score/questions.length)*100);
+document.getElementById("result").innerHTML=`
+<h2>Game Over</h2>
+<h3>Score: ${score}/${questions.length}</h3>
+`;
+}
+
+// ---------------- MATCH END ----------------
+socket.on("match_end",(data)=>{
+
+document.getElementById("question").innerHTML="";
+document.getElementById("answers").innerHTML="";
+document.getElementById("timer").innerHTML="";
 
 document.getElementById("result").innerHTML=`
 <h2>Game Over</h2>
-<h3>Score: ${score}/10</h3>
-<h2>${percent}%</h2>
+<h3>Winner: ${data.winner}</h3>
 `;
-}
+});
 
 </script>
 
