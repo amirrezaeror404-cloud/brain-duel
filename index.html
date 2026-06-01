@@ -41,6 +41,7 @@ cursor:pointer;
 .answer{background:white;color:black;}
 
 #timer{font-size:22px;color:#facc15;}
+#user{margin-bottom:10px;color:#38bdf8;font-weight:bold;}
 </style>
 
 </head>
@@ -49,6 +50,9 @@ cursor:pointer;
 <div class="container">
 
 <h1>🧠 Brain Duel</h1>
+
+<!-- 👇 Telegram welcome -->
+<p id="user">Loading...</p>
 
 <button class="play" onclick="findMatch()">Play Online</button>
 <button class="solo" onclick="startSolo()">Play Solo</button>
@@ -65,82 +69,94 @@ cursor:pointer;
 
 <script>
 
+// ---------------- TELEGRAM USER ----------------
+const tg = window.Telegram.WebApp;
+tg.ready();
+
+const user = {
+id: tg.initDataUnsafe?.user?.id || Math.floor(Math.random()*999999),
+name: tg.initDataUnsafe?.user?.first_name || "Guest"
+};
+
+document.getElementById("user").innerText =
+"👋 Welcome " + user.name;
+
 // ---------------- SOCKET ----------------
 const socket = io("YOUR_SERVER_URL");
 
-let matchId=null;
-let solo=false;
+let matchId = null;
+let solo = false;
 
-let questions=[];
-let index=0;
-let score=0;
-let answered=false;
+let questions = [];
+let index = 0;
+let score = 0;
+let answered = false;
 
 let timer;
-let time=15;
+let time = 15;
 
 // ---------------- HARD TRICK QUESTIONS ----------------
 const ALL_QUESTIONS = [
 
-{q:"If you answer this question correctly, you are wrong. What is the correct action?",a:["Choose any","Skip","Select wrong option","Cannot be solved"],c:2},
+{q:"If all cats are animals and no animals are stones, can cats be stones?",a:["Yes","No","Sometimes","Unknown"],c:1},
 
-{q:"A father has 4 sons. Each son has a sister. How many children?",a:["4","5","6","8"],c:1},
+{q:"What comes next: 1,4,9,16,25, ?",a:["30","35","36","49"],c:2},
 
-{q:"What disappears when you say its name?",a:["Shadow","Silence","Echo","Darkness"],c:1},
+{q:"A bat and ball cost $1.10. Bat is $1 more. Ball?",a:["$0.10","$0.05","$0.01","$0.20"],c:1},
 
-{q:"Which month has 28 days?",a:["February","All","None","Only Leap"],c:1},
+{q:"Which number missing: 2,3,5,7,11, ?",a:["12","13","14","15"],c:1},
 
-{q:"If 1=5, 2=25, 3=325, 4=?",a:["4325","4321","4325","4320"],c:0},
+{q:"What comes once in minute twice in moment?",a:["M","Time","Echo","Sound"],c:0},
 
-{q:"What comes once in a minute, twice in a moment, but never in 100 years?",a:["Time","M","Second","Hour"],c:1},
+{q:"Which is heavier 1kg iron or 1kg cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
 
-{q:"A man builds a house with all 4 sides facing south. Bear appears outside. What color?",a:["White","Brown","Black","Impossible"],c:1},
-
-{q:"If you multiply this answer by 0, what happens?",a:["0","1","Answer changes","Depends"],c:0},
-
-{q:"Which is heavier? 1kg iron or 1kg air?",a:["Iron","Air","Same","Depends"],c:2},
-
-{q:"You see me once in June, twice in November, but not in May. What am I?",a:["E","U","O","N"],c:2},
-
-{q:"A plane crashes on border USA-Canada. Where bury survivors?",a:["USA","Canada","Border","Nowhere"],c:3},
-
-{q:"Which word becomes shorter when you add 2 letters?",a:["Short","Long","Small","Tiny"],c:0},
-
-{q:"If yesterday was tomorrow, today would be Friday. What day is today?",a:["Monday","Tuesday","Wednesday","Sunday"],c:1},
+{q:"If yesterday was tomorrow, today is Friday. Today?",a:["Monday","Tuesday","Wednesday","Sunday"],c:1},
 
 {q:"What has keys but no locks?",a:["Car","Keyboard","Door","Safe"],c:1},
 
-{q:"Which number is always the same upside down?",a:["8","6","9","1"],c:0},
+{q:"Odd one: Sun, Moon, Earth, Apple",a:["Sun","Moon","Earth","Apple"],c:3},
 
-{q:"If all roses are flowers, some flowers fade, can all roses fade?",a:["Yes","No","Maybe","Unknown"],c:1},
+{q:"Cube root of 27?",a:["2","3","4","5"],c:1},
 
-{q:"What is full of holes but holds water?",a:["Net","Sponge","Bottle","Cup"],c:1},
+{q:"Which is NOT real number?",a:["0","-1","√-1","3"],c:2},
 
-{q:"You take away 2 from 5 and get 4. How?",a:["Roman","Math trick","Impossible","Typo"],c:0},
+{q:"15% of 300?",a:["30","35","40","45"],c:3},
 
-{q:"Which direction has no shadow at noon?",a:["North","South","Equator","Depends"],c:2},
+{q:"Binary of 3?",a:["10","11","01","00"],c:1},
 
-{q:"If 10 people shake hands once each, how many shakes?",a:["10","20","45","100"],c:2},
+{q:"1=5,2=25,3=125,4=?",a:["256","512","625","1000"],c:2},
 
-{q:"What can travel around the world while staying in corner?",a:["Light","Stamp","Air","Signal"],c:1},
+{q:"Closest planet to sun?",a:["Earth","Venus","Mercury","Mars"],c:2},
 
-{q:"Which word is spelled wrong in dictionary?",a:["Wrong","Correct","Spelling","None"],c:0},
+{q:"Triangle sum?",a:["90","180","270","360"],c:1},
 
-{q:"If you read me backwards I become heavy. What am I?",a:["Ton","Stone","Weight","Mass"],c:0},
+{q:"Speed 100km in 4h?",a:["20","25","30","40"],c:1},
 
-{q:"What has 13 hearts but no organs?",a:["Deck of cards","Human","Animal","Tree"],c:0},
+{q:"Square root 144?",a:["10","11","12","13"],c:2},
 
-{q:"If 3 cats catch 3 mice in 3 minutes, 1 cat catches 1 mouse in?",a:["1","3","9","6"],c:1},
+{q:"3+3=8 pattern, 4+4=?",a:["10","12","14","16"],c:2},
 
-{q:"Which can fill a room without space?",a:["Air","Light","Smoke","Sound"],c:1},
+{q:"Plants absorb?",a:["O2","CO2","N2","H2"],c:1},
 
-{q:"What goes up but never comes down?",a:["Age","Ball","Smoke","Water"],c:0},
+{q:"x+y=10, x=7 y=?",a:["2","3","4","5"],c:1},
 
-{q:"If you drop a red stone in blue sea what happens?",a:["Red","Blue","Wet","Sinks"],c:0},
+{q:"Prime number?",a:["21","27","29","33"],c:2},
 
-{q:"What has no life but can die?",a:["Battery","Fire","Stone","Air"],c:1},
+{q:"Programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
 
-{q:"If 5+5=25, 6+6=?",a:["30","36","66","12"],c:1}
+{q:"Ocean largest?",a:["Atlantic","Pacific","Indian","Arctic"],c:1},
+
+{q:"Ice is?",a:["Solid","Gas","Liquid","Plasma"],c:0},
+
+{q:"Human legs?",a:["1","2","3","4"],c:1},
+
+{q:"UK capital?",a:["London","Paris","Rome","Berlin"],c:0},
+
+{q:"Sun is?",a:["Planet","Star","Moon","Rock"],c:1},
+
+{q:"0/5=?",a:["0","5","1","undefined"],c:0},
+
+{q:"100-99+1=?",a:["0","1","2","3"],c:2}
 
 ];
 
@@ -155,34 +171,39 @@ return shuffle(ALL_QUESTIONS).slice(0,10);
 
 // ---------------- SOLO ----------------
 function startSolo(){
-solo=true;
-matchId=null;
 
-questions=getQuestions();
-index=0;
-score=0;
+solo = true;
+matchId = null;
 
-document.getElementById("status").innerText="Solo Mode";
+questions = getQuestions();
+index = 0;
+score = 0;
+
+document.getElementById("status").innerText = "Solo Mode";
 
 loadQuestion();
 }
 
 // ---------------- ONLINE ----------------
 function findMatch(){
-solo=false;
 
-socket.emit("find_match",{id:Math.random()*999999});
+solo = false;
 
-document.getElementById("status").innerText="Searching...";
-}
-
-// ---------------- MATCH ----------------
-socket.on("match_found",(data)=>{
-matchId=data.matchId;
-document.getElementById("status").innerText="Match Found!";
+socket.emit("find_match",{
+id: user.id,
+name: user.name
 });
 
-// ---------------- QUESTION ONLINE ----------------
+document.getElementById("status").innerText = "Searching...";
+}
+
+// ---------------- MATCH FOUND ----------------
+socket.on("match_found",(data)=>{
+matchId = data.matchId;
+document.getElementById("status").innerText = "Match Found!";
+});
+
+// ---------------- ONLINE QUESTION ----------------
 socket.on("question",(q)=>{
 if(solo) return;
 loadOnline(q);
@@ -191,27 +212,27 @@ loadOnline(q);
 // ---------------- LOAD SOLO ----------------
 function loadQuestion(){
 
-if(index>=questions.length){
+if(index >= questions.length){
 return endGame();
 }
 
-answered=false;
-time=15;
+answered = false;
+time = 15;
 
 startTimer();
 
-const q=questions[index];
+const q = questions[index];
 
-document.getElementById("question").innerText=q.q;
-document.getElementById("answers").innerHTML="";
+document.getElementById("question").innerText = q.q;
+document.getElementById("answers").innerHTML = "";
 
 q.a.forEach((opt,i)=>{
 
-const btn=document.createElement("button");
-btn.className="answer";
-btn.innerText=opt;
+const btn = document.createElement("button");
+btn.className = "answer";
+btn.innerText = opt;
 
-btn.onclick=()=>answer(i);
+btn.onclick = ()=>answer(i);
 
 document.getElementById("answers").appendChild(btn);
 
@@ -222,29 +243,29 @@ document.getElementById("answers").appendChild(btn);
 // ---------------- LOAD ONLINE ----------------
 function loadOnline(q){
 
-answered=false;
-time=15;
+answered = false;
+time = 15;
 
 startTimer();
 
-document.getElementById("question").innerText=q.q;
-document.getElementById("answers").innerHTML="";
+document.getElementById("question").innerText = q.q;
+document.getElementById("answers").innerHTML = "";
 
 q.options.forEach((opt,i)=>{
 
-const btn=document.createElement("button");
-btn.className="answer";
-btn.innerText=opt;
+const btn = document.createElement("button");
+btn.className = "answer";
+btn.innerText = opt;
 
-btn.onclick=()=>{
+btn.onclick = ()=>{
 
-if(answered)return;
-answered=true;
+if(answered) return;
+answered = true;
 
 socket.emit("answer",{
 matchId,
-userId:socket.id,
-answer:i
+userId: user.id,
+answer: i
 });
 
 };
@@ -258,10 +279,10 @@ document.getElementById("answers").appendChild(btn);
 // ---------------- ANSWER SOLO ----------------
 function answer(i){
 
-if(answered)return;
-answered=true;
+if(answered) return;
+answered = true;
 
-if(i===questions[index].c)score++;
+if(i === questions[index].c) score++;
 
 index++;
 loadQuestion();
@@ -272,21 +293,21 @@ function startTimer(){
 
 clearInterval(timer);
 
-document.getElementById("timer").innerText="⏳ "+time;
+document.getElementById("timer").innerText = "⏳ " + time;
 
-timer=setInterval(()=>{
+timer = setInterval(()=>{
 
 time--;
-document.getElementById("timer").innerText="⏳ "+time;
+document.getElementById("timer").innerText = "⏳ " + time;
 
-if(time<=0){
+if(time <= 0){
 clearInterval(timer);
 
 if(solo){
 index++;
 loadQuestion();
 }else{
-answered=true;
+answered = true;
 }
 }
 
@@ -294,21 +315,34 @@ answered=true;
 
 }
 
-// ---------------- END ----------------
+// ---------------- END GAME SOLO ----------------
 function endGame(){
 
-document.getElementById("question").innerHTML="";
-document.getElementById("answers").innerHTML="";
-document.getElementById("timer").innerHTML="";
+document.getElementById("question").innerHTML = "";
+document.getElementById("answers").innerHTML = "";
+document.getElementById("timer").innerHTML = "";
 
-let percent=Math.round((score/questions.length)*100);
+let percent = Math.round((score/questions.length)*100);
 
-document.getElementById("result").innerHTML=`
+document.getElementById("result").innerHTML = `
 <h2>🏁 Game Over</h2>
 <h3>Score: ${score}/10</h3>
 <h2>${percent}% IQ Level</h2>
 `;
 }
+
+// ---------------- ONLINE END ----------------
+socket.on("match_end",(data)=>{
+
+document.getElementById("question").innerHTML = "";
+document.getElementById("answers").innerHTML = "";
+document.getElementById("timer").innerHTML = "";
+
+document.getElementById("result").innerHTML = `
+<h2>🏁 Match Finished</h2>
+<h3>Winner: ${data.winner}</h3>
+`;
+});
 
 </script>
 
