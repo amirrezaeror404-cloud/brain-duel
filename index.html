@@ -9,37 +9,12 @@
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <style>
-body{
-margin:0;
-padding:20px;
-background:#0f172a;
-font-family:Arial;
-color:white;
-text-align:center;
-}
-
-.container{
-max-width:550px;
-margin:auto;
-background:#1e293b;
-padding:20px;
-border-radius:20px;
-}
-
-button{
-width:100%;
-padding:14px;
-margin-top:10px;
-border:none;
-border-radius:12px;
-font-size:16px;
-cursor:pointer;
-}
-
+body{margin:0;padding:20px;background:#0f172a;font-family:Arial;color:white;text-align:center;}
+.container{max-width:550px;margin:auto;background:#1e293b;padding:20px;border-radius:20px;}
+button{width:100%;padding:14px;margin-top:10px;border:none;border-radius:12px;font-size:16px;cursor:pointer;}
 .play{background:#38bdf8;color:white;}
 .solo{background:#22c55e;color:white;}
 .answer{background:white;color:black;}
-
 </style>
 
 </head>
@@ -48,8 +23,6 @@ cursor:pointer;
 <div class="container">
 
 <h1>🧠 Brain Duel</h1>
-
-<p id="user">Loading...</p>
 
 <button class="play" onclick="findMatch()">Play Online</button>
 <button class="solo" onclick="startSolo()">Play Solo</button>
@@ -66,19 +39,6 @@ cursor:pointer;
 
 <script>
 
-// ---------------- USER ----------------
-const tg = window.Telegram.WebApp;
-tg.ready();
-
-const user = {
-id: tg.initDataUnsafe?.user?.id || Math.floor(Math.random()*999999),
-name: tg.initDataUnsafe?.user?.first_name || "Guest"
-};
-
-document.getElementById("user").innerText =
-"👋 Welcome " + user.name;
-
-// ---------------- SOCKET ----------------
 const socket = io("YOUR_SERVER_URL");
 
 let matchId=null;
@@ -90,55 +50,81 @@ let answered=false;
 let timer;
 let time=10;
 
-// ---------------- QUESTIONS (SOLO) ----------------
-const ALL_QUESTIONS=[
-{q:"Capital of France?",a:["Berlin","Paris","Rome","London"],c:1},
-{q:"2+2?",a:["3","4","5","6"],c:1},
-{q:"Sky color?",a:["Green","Blue","Red","Yellow"],c:1},
-{q:"5x2?",a:["10","11","12","13"],c:0},
-{q:"Capital of Iran?",a:["Tehran","Shiraz","Tabriz","Mashhad"],c:0}
-];
+// ---------------- USER ----------------
+const tg = window.Telegram.WebApp;
+tg.ready();
 
 // ---------------- FIND MATCH ----------------
 function findMatch(){
 solo=false;
-socket.emit("find_match",user);
+socket.emit("find_match",{id:tg.initDataUnsafe?.user?.id || Math.random()*99999});
 document.getElementById("status").innerText="Searching...";
 }
 
-// ---------------- SOLO MODE ----------------
+// ---------------- SOLO ----------------
 function startSolo(){
-
 solo=true;
 index=0;
 score=0;
-
-questions=[...ALL_QUESTIONS].sort(()=>Math.random()-0.5).slice(0,5);
-
-document.getElementById("status").innerText="Solo Mode";
-
+questions=getRandomQuestions();
 loadQuestion();
+document.getElementById("status").innerText="Solo Mode";
 }
 
-// ---------------- MATCH FOUND ----------------
-socket.on("match_found",(data)=>{
-matchId=data.matchId;
-document.getElementById("status").innerText="Match Found!";
-});
+// ---------------- 30 QUESTIONS ----------------
+const ALL_QUESTIONS = [
 
-// ---------------- QUESTION (ONLINE) ----------------
-socket.on("question",(q)=>{
+{q:"Capital of France?",a:["Berlin","Paris","Rome","London"],c:1},
+{q:"2 + 2 ?",a:["3","4","5","6"],c:1},
+{q:"Largest planet?",a:["Earth","Mars","Jupiter","Venus"],c:2},
+{q:"5 x 5 ?",a:["20","25","30","15"],c:1},
+{q:"Color of sky?",a:["Blue","Green","Red","Yellow"],c:0},
+{q:"Capital of Iran?",a:["Tehran","Shiraz","Tabriz","Mashhad"],c:0},
+{q:"10 / 2 ?",a:["2","3","5","6"],c:2},
+{q:"Fastest land animal?",a:["Lion","Cheetah","Tiger","Horse"],c:1},
+{q:"Ocean largest?",a:["Atlantic","Pacific","Indian","Arctic"],c:1},
+{q:"How many days in week?",a:["5","6","7","8"],c:2},
 
-if(solo) return;
+{q:"Capital of USA?",a:["NY","Washington DC","LA","Boston"],c:1},
+{q:"Sun is a?",a:["Planet","Star","Moon","Rock"],c:1},
+{q:"3 x 3 ?",a:["6","9","12","15"],c:1},
+{q:"Water formula?",a:["CO2","H2O","O2","NaCl"],c:1},
+{q:"Bird that can't fly?",a:["Eagle","Penguin","Crow","Sparrow"],c:1},
+{q:"Square root of 81?",a:["7","8","9","10"],c:2},
+{q:"Capital of Japan?",a:["Seoul","Tokyo","Beijing","Bangkok"],c:1},
+{q:"Which is programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
+{q:"5 + 7 ?",a:["10","11","12","13"],c:2},
+{q:"Human has how many legs?",a:["2","3","4","5"],c:0},
 
-loadOnlineQuestion(q);
-});
+{q:"Red + Blue = ?",a:["Green","Purple","Orange","Yellow"],c:1},
+{q:"Earth is?",a:["Flat","Round","Square","Triangle"],c:1},
+{q:"Which is fruit?",a:["Carrot","Apple","Potato","Onion"],c:1},
+{q:"Which is vehicle?",a:["Chair","Car","Table","Book"],c:1},
+{q:"Capital of UK?",a:["London","Paris","Rome","Berlin"],c:0},
+{q:"HTML is for?",a:["Design","Structure","Music","Game"],c:1},
+{q:"CPU is?",a:["Brain of computer","Screen","Mouse","Keyboard"],c:0},
+{q:"1 hour = ?",a:["30 min","60 min","90 min","100 min"],c:1},
+{q:"Which gas we breathe?",a:["CO2","Oxygen","Helium","Hydrogen"],c:1},
+{q:"Ice is?",a:["Hot","Solid","Gas","Liquid"],c:1}
 
-// ---------------- LOAD SOLO ----------------
+];
+
+// shuffle
+function shuffle(a){
+return [...a].sort(()=>Math.random()-0.5);
+}
+
+// get 10 random questions per player
+function getRandomQuestions(){
+return shuffle(ALL_QUESTIONS).slice(0,10);
+}
+
+// ---------------- LOAD QUESTION ----------------
 function loadQuestion(){
 
 if(index>=questions.length){
-return endGame();
+endGame();
+return;
 }
 
 answered=false;
@@ -154,10 +140,9 @@ q.a.forEach((opt,i)=>{
 
 const btn=document.createElement("button");
 btn.className="answer";
-
 btn.innerText=opt;
 
-btn.onclick=()=>answerSolo(i);
+btn.onclick=()=>answer(i);
 
 document.getElementById("answers").appendChild(btn);
 
@@ -165,51 +150,13 @@ document.getElementById("answers").appendChild(btn);
 
 }
 
-// ---------------- LOAD ONLINE ----------------
-function loadOnlineQuestion(q){
-
-answered=false;
-time=10;
-startTimer();
-
-document.getElementById("question").innerText=q.q;
-document.getElementById("answers").innerHTML="";
-
-q.options.forEach((opt,i)=>{
-
-const btn=document.createElement("button");
-btn.className="answer";
-
-btn.innerText=opt;
-
-btn.onclick=()=>{
+// ---------------- ANSWER ----------------
+function answer(i){
 
 if(answered)return;
 answered=true;
 
-socket.emit("answer",{
-matchId,
-userId:user.id,
-answer:i
-});
-
-};
-
-document.getElementById("answers").appendChild(btn);
-
-});
-
-}
-
-// ---------------- SOLO ANSWER ----------------
-function answerSolo(i){
-
-if(answered)return;
-answered=true;
-
-if(i===questions[index].c){
-score++;
-}
+if(i===questions[index].c)score++;
 
 index++;
 loadQuestion();
@@ -229,43 +176,25 @@ document.getElementById("timer").innerText="Time: "+time;
 
 if(time<=0){
 clearInterval(timer);
-
-if(solo){
 index++;
 loadQuestion();
-}else{
-answered=true;
-}
 }
 
 },1000);
+
 }
 
-// ---------------- END SOLO ----------------
+// ---------------- END ----------------
 function endGame(){
 
 document.getElementById("question").innerHTML="";
 document.getElementById("answers").innerHTML="";
 document.getElementById("timer").innerHTML="";
 
-document.getElementById("result").innerHTML=`
-<h2>Game Over</h2>
-<h3>Score: ${score}/${questions.length}</h3>
-`;
+document.getElementById("result").innerHTML=
+`<h2>Game Over</h2>
+<h3>Score: ${score}/10</h3>`;
 }
-
-// ---------------- MATCH END ----------------
-socket.on("match_end",(data)=>{
-
-document.getElementById("question").innerHTML="";
-document.getElementById("answers").innerHTML="";
-document.getElementById("timer").innerHTML="";
-
-document.getElementById("result").innerHTML=`
-<h2>Game Over</h2>
-<h3>Winner: ${data.winner}</h3>
-`;
-});
 
 </script>
 
