@@ -1,266 +1,139 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Brain Duel</title>
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+const app = express();
+app.use(cors());
+app.use(express.static("public"));
 
-<style>
+const server = http.createServer(app);
+const io = new Server(server);
 
-body{
-margin:0;
-padding:20px;
-background:#0f172a;
-font-family:Arial,sans-serif;
-color:white;
-text-align:center;
-}
+// ---------------- DATA ----------------
+let waiting = [];
+let matches = {};
 
-.container{
-max-width:550px;
-margin:auto;
-background:#1e293b;
-padding:20px;
-border-radius:20px;
-}
-
-h1{
-color:#38bdf8;
-}
-
-#username{
-font-size:18px;
-margin-bottom:20px;
-}
-
-#question{
-margin:20px 0;
-}
-
-button{
-width:100%;
-padding:15px;
-margin-top:10px;
-font-size:18px;
-border:none;
-border-radius:12px;
-cursor:pointer;
-}
-
-.answer-btn{
-background:white;
-color:black;
-}
-
-.play-btn{
-background:#38bdf8;
-color:white;
-}
-
-</style>
-
-</head>
-<body>
-
-<div class="container">
-
-<h1>🧠 Brain Duel</h1>
-
-<p id="username">Loading...</p>
-
-<h2 id="question"></h2>
-
-<div id="answers"></div>
-
-<div id="result"></div>
-
-</div>
-
-<script>
-
-const tg = window.Telegram.WebApp;
-
-if(tg){
-tg.ready();
-}
-
-let userName = "Guest";
-
-if(tg &&
-tg.initDataUnsafe &&
-tg.initDataUnsafe.user){
-
-userName = tg.initDataUnsafe.user.first_name;
-
-}
-
-document.getElementById("username").innerHTML =
-"👋 Welcome " + userName;
-
-const allQuestions = [
-
-{question:"Which planet is known as the Red Planet?",answers:["Earth","Mars","Jupiter","Venus"],correct:1},
-{question:"What is 9 × 9 ?",answers:["72","81","91","99"],correct:1},
-{question:"Who lives in a pineapple under the sea?",answers:["Mickey Mouse","SpongeBob","Shrek","Tom"],correct:1},
-{question:"What comes next? 2,4,8,16,?",answers:["24","32","30","40"],correct:1},
-{question:"Which animal is known as the King of the Jungle?",answers:["Tiger","Elephant","Lion","Bear"],correct:2},
-{question:"What is the capital of France?",answers:["Berlin","Madrid","Paris","Rome"],correct:2},
-{question:"Which game features the character Steve?",answers:["Roblox","Minecraft","Fortnite","GTA"],correct:1},
-{question:"How many days are there in a week?",answers:["5","6","7","8"],correct:2},
-{question:"Which company created the iPhone?",answers:["Samsung","Google","Apple","Microsoft"],correct:2},
-{question:"What is half of 100?",answers:["40","50","60","70"],correct:1},
-
-{question:"What color do you get by mixing red and blue?",answers:["Green","Purple","Orange","Yellow"],correct:1},
-{question:"Which ocean is the largest?",answers:["Atlantic","Indian","Arctic","Pacific"],correct:3},
-{question:"How many continents are there?",answers:["5","6","7","8"],correct:2},
-{question:"What is the fastest land animal?",answers:["Lion","Cheetah","Tiger","Horse"],correct:1},
-{question:"What is 12 × 12 ?",answers:["124","144","132","142"],correct:1},
-{question:"Which country is famous for sushi?",answers:["China","Japan","Korea","Thailand"],correct:1},
-{question:"Which superhero is known as the Dark Knight?",answers:["Batman","Superman","Iron Man","Thor"],correct:0},
-{question:"How many hours are in a day?",answers:["12","18","24","36"],correct:2},
-{question:"What is the square root of 81?",answers:["7","8","9","10"],correct:2},
-{question:"Which bird cannot fly?",answers:["Eagle","Parrot","Penguin","Falcon"],correct:2},
-
-{question:"What is the largest mammal?",answers:["Elephant","Blue Whale","Hippo","Giraffe"],correct:1},
-{question:"Which planet is closest to the Sun?",answers:["Earth","Venus","Mercury","Mars"],correct:2},
-{question:"What is 50 + 25 ?",answers:["65","70","75","80"],correct:2},
-{question:"Which company owns YouTube?",answers:["Meta","Amazon","Google","Apple"],correct:2},
-{question:"How many legs does a spider have?",answers:["6","8","10","12"],correct:1},
-{question:"Which country has the pyramids?",answers:["India","Egypt","Mexico","Brazil"],correct:1},
-{question:"What is 100 ÷ 4 ?",answers:["20","25","30","40"],correct:1},
-{question:"Which sport uses a racket?",answers:["Football","Basketball","Tennis","Rugby"],correct:2},
-{question:"Which gas do humans breathe in?",answers:["Carbon Dioxide","Oxygen","Nitrogen","Hydrogen"],correct:1},
-{question:"Which is the smallest prime number?",answers:["0","1","2","3"],correct:2}
-
+// ---------------- QUESTIONS ----------------
+const QUESTIONS = [
+  { q: "Capital of France?", options: ["Berlin","Paris","Rome","London"], a: 1 },
+  { q: "2 + 2 = ?", options: ["3","4","5","6"], a: 1 },
+  { q: "Color of the sky?", options: ["Green","Blue","Red","Yellow"], a: 1 },
+  { q: "5 * 2 = ?", options: ["10","12","8","15"], a: 0 },
+  { q: "Capital of Iran?", options: ["Tehran","Mashhad","Shiraz","Tabriz"], a: 0 },
+  { q: "10 / 2 = ?", options: ["2","3","5","6"], a: 2 },
 ];
 
-function shuffle(array){
-
-for(let i=array.length-1;i>0;i--){
-
-const j=Math.floor(Math.random()*(i+1));
-
-[array[i],array[j]]=[array[j],array[i]];
-
+// ---------------- HELPERS ----------------
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
 }
 
-return array;
-
+function getQuestions() {
+  return shuffle(QUESTIONS).slice(0, 5);
 }
 
-const questions =
-shuffle([...allQuestions]).slice(0,10);
+// ---------------- SOCKET ----------------
+io.on("connection", (socket) => {
 
-let currentQuestion = 0;
-let score = 0;
+  console.log("User connected:", socket.id);
 
-const questionEl =
-document.getElementById("question");
+  // FIND MATCH
+  socket.on("find_match", (user) => {
 
-const answersEl =
-document.getElementById("answers");
+    waiting.push({ socket, user });
 
-const resultEl =
-document.getElementById("result");
+    if (waiting.length >= 2) {
+      const p1 = waiting.shift();
+      const p2 = waiting.shift();
 
-function loadQuestion(){
+      const matchId = Date.now().toString();
 
-const q = questions[currentQuestion];
+      matches[matchId] = {
+        players: [p1.user.id, p2.user.id],
+        index: {},
+        scores: {},
+        questions: {}
+      };
 
-questionEl.innerText =
-`Question ${currentQuestion+1}/10
+      matches[matchId].players.forEach(u => {
+        matches[matchId].index[u] = 0;
+        matches[matchId].scores[u] = 0;
+        matches[matchId].questions[u] = getQuestions();
+      });
 
-${q.question}`;
+      p1.socket.join(matchId);
+      p2.socket.join(matchId);
 
-answersEl.innerHTML = "";
+      io.to(matchId).emit("match_found", { matchId });
 
-q.answers.forEach((answer,index)=>{
+      sendQuestion(matchId);
+    }
+  });
 
-const btn =
-document.createElement("button");
-
-btn.className = "answer-btn";
-
-btn.innerText = answer;
-
-btn.onclick = ()=>{
-
-if(index === q.correct){
-score++;
-}
-
-currentQuestion++;
-
-if(currentQuestion < questions.length){
-loadQuestion();
-}else{
-showResult();
-}
-
-};
-
-answersEl.appendChild(btn);
+  // ANSWER
+  socket.on("answer", ({ matchId, userId, answer }) => {
+    handleAnswer(matchId, userId, answer);
+  });
 
 });
 
+// ---------------- SEND QUESTION ----------------
+function sendQuestion(matchId) {
+  const m = matches[matchId];
+  if (!m) return;
+
+  m.players.forEach(userId => {
+    const i = m.index[userId];
+    const q = m.questions[userId][i];
+
+    io.to(matchId).emit("question", { userId, q });
+  });
 }
 
-function showResult(){
+// ---------------- HANDLE ANSWER ----------------
+function handleAnswer(matchId, userId, answer) {
 
-questionEl.innerHTML="";
-answersEl.innerHTML="";
+  const m = matches[matchId];
+  if (!m) return;
 
-let percent =
-Math.round((score/questions.length)*100);
+  const i = m.index[userId];
+  const q = m.questions[userId][i];
 
-let title="";
-let badge="";
+  if (answer === q.a) {
+    m.scores[userId]++;
+  }
 
-if(percent>=90){
-title="🧠 Genius";
-badge="Top 5% of Players";
-}
-else if(percent>=70){
-title="⚡ Smart";
-badge="Top 20% of Players";
-}
-else if(percent>=40){
-title="🧩 Average";
-badge="Top 50% of Players";
-}
-else{
-title="🐣 Beginner";
-badge="Keep Practicing";
+  m.index[userId]++;
+
+  if (m.index[userId] >= m.questions[userId].length) {
+    endGame(matchId);
+    return;
+  }
+
+  sendQuestion(matchId);
 }
 
-resultEl.innerHTML = `
+// ---------------- END GAME ----------------
+function endGame(matchId) {
 
-<h2>Quiz Completed!</h2>
+  const m = matches[matchId];
+  const [p1, p2] = m.players;
 
-<h1>${percent}/100</h1>
+  let winner = "draw";
 
-<h2>${title}</h2>
+  if (m.scores[p1] > m.scores[p2]) winner = p1;
+  if (m.scores[p2] > m.scores[p1]) winner = p2;
 
-<p>${badge}</p>
+  io.to(matchId).emit("match_end", {
+    winner,
+    scores: m.scores
+  });
 
-<p>You answered ${score} out of ${questions.length} correctly.</p>
-
-<button class="play-btn"
-onclick="location.reload()">
-
-🔄 Play Again
-
-</button>
-
-`;
-
+  delete matches[matchId];
 }
 
-loadQuestion();
-
-</script>
-
-</body>
-</html>
+// ---------------- START SERVER ----------------
+server.listen(process.env.PORT || 3000, () => {
+  console.log("Server running...");
+});
