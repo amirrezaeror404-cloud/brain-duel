@@ -1,38 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Brain Duel</title>
 
 <style>
+
 body{
-background:#111;
+background:#0f172a;
 color:white;
-font-family:Arial;
+font-family:Arial,sans-serif;
 text-align:center;
 padding:20px;
+margin:0;
+}
+
+.container{
+max-width:500px;
+margin:auto;
+background:#1e293b;
+padding:20px;
+border-radius:20px;
+}
+
+h1{
+color:#38bdf8;
 }
 
 button{
 width:100%;
-max-width:300px;
 padding:15px;
-margin:10px auto;
-display:block;
+margin-top:10px;
 font-size:18px;
 border:none;
 border-radius:12px;
 cursor:pointer;
 }
 
-h1{
-color:#00e5ff;
+.answer-btn{
+background:white;
 }
+
+.answer-btn:hover{
+opacity:0.9;
+}
+
+.play-again{
+background:#38bdf8;
+color:white;
+}
+
 </style>
 
 </head>
 <body>
+
+<div class="container">
 
 <h1>🧠 Brain Duel</h1>
 
@@ -42,81 +66,115 @@ color:#00e5ff;
 
 <div id="result"></div>
 
+</div>
+
 <script>
 
-const questions=[
+const questions = [
 
 {
-question:"2,4,8,16,?",
+question:"Which planet is known as the Red Planet?",
+answers:["Earth","Mars","Jupiter","Venus"],
+correct:1
+},
+
+{
+question:"What is 9 × 9 ?",
+answers:["72","81","91","99"],
+correct:1
+},
+
+{
+question:"Who lives in a pineapple under the sea?",
+answers:["Mickey Mouse","SpongeBob","Shrek","Tom"],
+correct:1
+},
+
+{
+question:"What comes next? 2,4,8,16,?",
 answers:["24","32","30","40"],
 correct:1
 },
 
 {
-question:"How many sides does a hexagon have?",
+question:"Which animal is known as the King of the Jungle?",
+answers:["Tiger","Elephant","Lion","Bear"],
+correct:2
+},
+
+{
+question:"What is the capital of France?",
+answers:["Berlin","Madrid","Paris","Rome"],
+correct:2
+},
+
+{
+question:"Which game features the character Steve?",
+answers:["Roblox","Minecraft","Fortnite","GTA"],
+correct:1
+},
+
+{
+question:"How many days are there in a week?",
 answers:["5","6","7","8"],
-correct:1
-},
-
-{
-question:"What is 15 + 18 ?",
-answers:["32","33","34","35"],
-correct:1
-},
-
-{
-question:"Which is heavier?",
-answers:["1kg Iron","1kg Cotton","Same","None"],
 correct:2
 },
 
 {
-question:"What comes after B?",
-answers:["A","D","C","E"],
+question:"Which company created the iPhone?",
+answers:["Samsung","Google","Apple","Microsoft"],
 correct:2
+},
+
+{
+question:"What is half of 100?",
+answers:["40","50","60","70"],
+correct:1
 }
 
 ];
 
-let current=0;
-let score=0;
+let currentQuestion = 0;
+let score = 0;
 
-const question=document.getElementById("question");
-const answers=document.getElementById("answers");
-const result=document.getElementById("result");
+const questionEl = document.getElementById("question");
+const answersEl = document.getElementById("answers");
+const resultEl = document.getElementById("result");
 
 function loadQuestion(){
 
-let q=questions[current];
+const q = questions[currentQuestion];
 
-question.innerText=q.question;
+questionEl.innerText =
+`Question ${currentQuestion + 1}/10\n\n${q.question}`;
 
-answers.innerHTML="";
+answersEl.innerHTML = "";
 
 q.answers.forEach((answer,index)=>{
 
-let btn=document.createElement("button");
+const btn = document.createElement("button");
 
-btn.innerText=answer;
+btn.className="answer-btn";
 
-btn.onclick=()=>{
+btn.innerText = answer;
 
-if(index===q.correct){
+btn.onclick = ()=>{
+
+if(index === q.correct){
 score++;
 }
 
-current++;
+currentQuestion++;
 
-if(current<questions.length){
+if(currentQuestion < questions.length){
 loadQuestion();
-}
-else{
+}else{
 showResult();
 }
 
 };
 
-answers.appendChild(btn);
+answersEl.appendChild(btn);
 
 });
 
@@ -124,38 +182,39 @@ answers.appendChild(btn);
 
 function showResult(){
 
-question.innerHTML="";
-answers.innerHTML="";
+questionEl.innerHTML="";
+answersEl.innerHTML="";
 
-let brainScore=80+(score*12);
+let percent =
+Math.round((score/questions.length)*100);
 
-let rank="";
+let title="";
 
-if(brainScore>=140){
-rank="Genius 🧠";
+if(percent>=90){
+title="🧠 Genius";
 }
-else if(brainScore>=120){
-rank="Logical Thinker 🏆";
+else if(percent>=70){
+title="⚡ Smart";
 }
-else if(brainScore>=100){
-rank="Quick Mind ⚡";
+else if(percent>=40){
+title="🧩 Average";
 }
 else{
-rank="Keep Training 💪";
+title="🐣 Beginner";
 }
 
-result.innerHTML=`
+resultEl.innerHTML = `
 
-<h2>🧠 Brain Duel Result</h2>
+<h2>Quiz Completed!</h2>
 
-<h1>${brainScore}</h1>
+<h1>${percent}/100</h1>
 
-<p>${rank}</p>
+<h2>${title}</h2>
 
-<p>You answered ${score} of ${questions.length} correctly.</p>
+<p>You answered ${score} out of ${questions.length} correctly.</p>
 
-<button onclick="location.reload()">
-Play Again
+<button class="play-again" onclick="location.reload()">
+🔄 Play Again
 </button>
 
 `;
