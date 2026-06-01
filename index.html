@@ -53,7 +53,7 @@ cursor:pointer;
 
 <h1>🧠 Brain Duel</h1>
 
-<p id="user">Loading...</p>
+<p id="user">Loading user...</p>
 
 <button class="play" onclick="findMatch()">Play Online</button>
 <button class="solo" onclick="startSolo()">Play Solo</button>
@@ -71,63 +71,80 @@ cursor:pointer;
 
 <script>
 
-console.log("Game Starting...");
+console.log("Brain Duel booting...");
 
-// ---------------- TELEGRAM SAFE ----------------
+// ---------------- SAFE TELEGRAM ----------------
 const tg = window.Telegram?.WebApp || null;
 
-if(tg){
-tg.ready?.();
-}
+try{
+tg?.ready?.();
+}catch(e){}
 
-// fallback safe user (IMPORTANT FIX)
-const user = {
-id: (tg && tg.initDataUnsafe && tg.initDataUnsafe.user)
-? tg.initDataUnsafe.user.id
-: Math.floor(Math.random()*999999),
-
-name: (tg && tg.initDataUnsafe && tg.initDataUnsafe.user)
-? tg.initDataUnsafe.user.first_name
-: "Guest"
+// fallback user (NEVER BREAKS)
+let user = {
+id: Math.floor(Math.random()*999999),
+name: "Guest"
 };
+
+try{
+if(tg && tg.initDataUnsafe && tg.initDataUnsafe.user){
+user.id = tg.initDataUnsafe.user.id;
+user.name = tg.initDataUnsafe.user.first_name;
+}
+}catch(e){
+console.log("Telegram error safe:", e);
+}
 
 document.getElementById("user").innerText =
 "👋 Welcome " + user.name;
 
-console.log("USER:", user);
+// ---------------- SUPABASE SAFE ----------------
+let supabase = null;
 
-// ---------------- SUPABASE ----------------
+try{
 const supabaseUrl = "YOUR_SUPABASE_URL";
 const supabaseKey = "YOUR_SUPABASE_ANON_KEY";
+supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+}catch(e){
+console.log("Supabase disabled:", e);
+}
 
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-// save user safely
+// save user (NON-BLOCKING)
 async function saveUser(){
+if(!supabase) return;
+
 try{
 await supabase.from("users").upsert({
 id: user.id,
 name: user.name
 });
 }catch(e){
-console.log("Supabase error:", e);
+console.log("saveUser error:", e);
 }
 }
+
 saveUser();
 
-// ---------------- SOCKET ----------------
-const socket = io("YOUR_SERVER_URL");
+// ---------------- SOCKET SAFE ----------------
+let socket = null;
 
-let matchId=null;
-let solo=false;
+try{
+socket = io("YOUR_SERVER_URL");
+}catch(e){
+console.log("Socket disabled");
+}
 
-let questions=[];
-let index=0;
-let score=0;
-let answered=false;
+// ---------------- GAME STATE ----------------
+let matchId = null;
+let solo = false;
+
+let questions = [];
+let index = 0;
+let score = 0;
+let answered = false;
 
 let timer;
-let time=15;
+let time = 15;
 
 // ---------------- QUESTIONS ----------------
 const ALL_QUESTIONS = [
@@ -136,13 +153,11 @@ const ALL_QUESTIONS = [
 {q:"Bat $1.10, bat $1 more than ball. Ball?",a:["0.10","0.05","0.01","0.20"],c:1},
 {q:"2,3,5,7,11, ?",a:["12","13","14","15"],c:1},
 {q:"Once in minute twice in moment?",a:["M","Time","Echo","Sound"],c:0},
-{q:"1kg iron vs 1kg cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
+{q:"1kg iron vs cotton?",a:["Iron","Cotton","Same","Depends"],c:2},
 {q:"Keys but no lock?",a:["Car","Keyboard","Door","Safe"],c:1},
 {q:"Cube root 27?",a:["2","3","4","5"],c:1},
-{q:"NOT real number?",a:["0","-1","√-1","3"],c:2},
 {q:"15% of 300?",a:["30","35","40","45"],c:3},
 {q:"Binary 3?",a:["10","11","01","00"],c:1},
-{q:"Closest planet sun?",a:["Earth","Venus","Mercury","Mars"],c:2},
 {q:"Triangle sum?",a:["90","180","270","360"],c:1},
 {q:"√144?",a:["10","11","12","13"],c:2},
 {q:"Ocean largest?",a:["Atlantic","Pacific","Indian","Arctic"],c:1},
@@ -150,25 +165,23 @@ const ALL_QUESTIONS = [
 {q:"UK capital?",a:["London","Paris","Rome","Berlin"],c:0},
 {q:"Sun is?",a:["Planet","Star","Moon","Rock"],c:1},
 {q:"0/5=?",a:["0","5","1","undefined"],c:0},
-{q:"100-99+1=?",a:["0","1","2","3"],c:2},
 {q:"Human legs?",a:["1","2","3","4"],c:1},
 {q:"Programming language?",a:["HTML","Python","Photoshop","Excel"],c:1},
 {q:"x+y=10 x=7 y?",a:["2","3","4","5"],c:1},
-{q:"Square 12?",a:["144","121","132","156"],c:0},
-{q:"Sun closest planet?",a:["Mercury","Venus","Earth","Mars"],c:0}
+{q:"Square 12?",a:["144","121","132","156"],c:0}
 ];
 
 // ---------------- SOLO ----------------
 function startSolo(){
 
-solo=true;
-matchId=null;
+solo = true;
+matchId = null;
 
-questions=[...ALL_QUESTIONS].sort(()=>Math.random()-0.5).slice(0,10);
-index=0;
-score=0;
+questions = ALL_QUESTIONS.sort(()=>Math.random()-0.5).slice(0,10);
+index = 0;
+score = 0;
 
-document.getElementById("status").innerText="Solo Mode";
+document.getElementById("status").innerText = "Solo Mode";
 
 loadQuestion();
 }
@@ -176,100 +189,95 @@ loadQuestion();
 // ---------------- ONLINE ----------------
 function findMatch(){
 
-solo=false;
+solo = false;
 
-socket.emit("find_match",{
-id:user.id,
-name:user.name
-});
-
-document.getElementById("status").innerText="Searching...";
+if(socket){
+socket.emit("find_match",{id:user.id,name:user.name});
 }
 
+document.getElementById("status").innerText = "Searching...";
+}
+
+if(socket){
 socket.on("match_found",(data)=>{
-matchId=data.matchId;
-document.getElementById("status").innerText="Match Found!";
+matchId = data.matchId;
+document.getElementById("status").innerText = "Match Found!";
 });
 
 socket.on("question",(q)=>{
-if(solo) return;
-loadOnline(q);
+if(!solo) loadOnline(q);
 });
+}
 
 // ---------------- SOLO QUESTION ----------------
 function loadQuestion(){
 
-if(index>=questions.length){
+if(index >= questions.length){
 return endGame();
 }
 
-answered=false;
-time=15;
+answered = false;
+time = 15;
 
 startTimer();
 
-const q=questions[index];
+let q = questions[index];
 
-document.getElementById("question").innerText=q.q;
-document.getElementById("answers").innerHTML="";
+document.getElementById("question").innerText = q.q;
+document.getElementById("answers").innerHTML = "";
 
 q.a.forEach((opt,i)=>{
+let btn = document.createElement("button");
+btn.className = "answer";
+btn.innerText = opt;
 
-const btn=document.createElement("button");
-btn.className="answer";
-btn.innerText=opt;
-
-btn.onclick=()=>answer(i);
+btn.onclick = ()=>answer(i);
 
 document.getElementById("answers").appendChild(btn);
-
 });
-
 }
 
 // ---------------- ONLINE QUESTION ----------------
 function loadOnline(q){
 
-answered=false;
-time=15;
+if(!q || !q.options) return;
+
+answered = false;
+time = 15;
 
 startTimer();
 
-document.getElementById("question").innerText=q.q;
-document.getElementById("answers").innerHTML="";
+document.getElementById("question").innerText = q.q;
+document.getElementById("answers").innerHTML = "";
 
 q.options.forEach((opt,i)=>{
+let btn = document.createElement("button");
+btn.className = "answer";
+btn.innerText = opt;
 
-const btn=document.createElement("button");
-btn.className="answer";
-btn.innerText=opt;
+btn.onclick = ()=>{
 
-btn.onclick=()=>{
+if(answered) return;
+answered = true;
 
-if(answered)return;
-answered=true;
-
-socket.emit("answer",{
+socket?.emit?.("answer",{
 matchId,
 userId:user.id,
 answer:i
 });
-
 };
 
 document.getElementById("answers").appendChild(btn);
-
 });
-
 }
 
-// ---------------- ANSWER SOLO ----------------
+// ---------------- ANSWER ----------------
 function answer(i){
 
 if(answered) return;
-answered=true;
+answered = true;
 
-if(i===questions[index].c) score++;
+if(i === questions[index].c) score++;
 
 index++;
 loadQuestion();
@@ -280,38 +288,37 @@ function startTimer(){
 
 clearInterval(timer);
 
-document.getElementById("timer").innerText="⏳ "+time;
+document.getElementById("timer").innerText = "⏳ " + time;
 
-timer=setInterval(()=>{
+timer = setInterval(()=>{
 
 time--;
-document.getElementById("timer").innerText="⏳ "+time;
+document.getElementById("timer").innerText = "⏳ " + time;
 
-if(time<=0){
+if(time <= 0){
 clearInterval(timer);
 
 if(solo){
 index++;
 loadQuestion();
 }else{
-answered=true;
+answered = true;
 }
 }
 
 },1000);
-
 }
 
 // ---------------- END ----------------
 function endGame(){
 
-document.getElementById("question").innerHTML="";
-document.getElementById("answers").innerHTML="";
-document.getElementById("timer").innerHTML="";
+document.getElementById("question").innerHTML = "";
+document.getElementById("answers").innerHTML = "";
+document.getElementById("timer").innerHTML = "";
 
-let percent=Math.round((score/questions.length)*100);
+let percent = Math.round((score/questions.length)*100);
 
-document.getElementById("result").innerHTML=`
+document.getElementById("result").innerHTML = `
 <h2>🏁 Game Over</h2>
 <h3>Score: ${score}/10</h3>
 <h2>${percent}% IQ Level</h2>
@@ -320,8 +327,10 @@ document.getElementById("result").innerHTML=`
 updateScore();
 }
 
-// ---------------- SUPABASE SCORE ----------------
+// ---------------- SUPABASE SCORE SAFE ----------------
 async function updateScore(){
+
+if(!supabase) return;
 
 try{
 
@@ -334,20 +343,22 @@ let { data } = await supabase
 if(data){
 
 await supabase.from("users").update({
-score: (data.score || 0) + score,
-games: (data.games || 0) + 1
+score: (data.score||0) + score,
+games: (data.games||0) + 1
 }).eq("id", user.id);
 
 }
 
 }catch(e){
-console.log(e);
+console.log("updateScore error:", e);
 }
 
 }
 
-// ---------------- LEADERBOARD ----------------
+// ---------------- LEADERBOARD SAFE ----------------
 async function loadLeaderboard(){
+
+if(!supabase) return;
 
 try{
 
@@ -357,16 +368,16 @@ let { data } = await supabase
 .order("score",{ascending:false})
 .limit(10);
 
-let html="<h2>🏆 Leaderboard</h2>";
+let html = "<h2>🏆 Leaderboard</h2>";
 
-data.forEach((u,i)=>{
-html+=`<p>${i+1}. ${u.name} - ${u.score}</p>`;
+data?.forEach((u,i)=>{
+html += `<p>${i+1}. ${u.name} - ${u.score}</p>`;
 });
 
-document.getElementById("result").innerHTML=html;
+document.getElementById("result").innerHTML = html;
 
 }catch(e){
-console.log(e);
+console.log("leaderboard error:", e);
 }
 
 }
