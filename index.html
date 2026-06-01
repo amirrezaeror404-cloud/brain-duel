@@ -28,7 +28,7 @@ border-radius:20px;
 
 button{
 width:100%;
-padding:15px;
+padding:14px;
 margin-top:10px;
 border:none;
 border-radius:12px;
@@ -36,8 +36,10 @@ font-size:16px;
 cursor:pointer;
 }
 
-.answer-btn{background:white;color:black;}
-.play-btn{background:#38bdf8;color:white;}
+.play{background:#38bdf8;color:white;}
+.solo{background:#22c55e;color:white;}
+.answer{background:white;color:black;}
+
 </style>
 
 </head>
@@ -47,11 +49,13 @@ cursor:pointer;
 
 <h1>🧠 Brain Duel</h1>
 
-<p id="username">Loading...</p>
+<p id="user">Loading...</p>
 
-<button class="play-btn" onclick="findMatch()">Find Match</button>
+<button class="play" onclick="findMatch()">Play Online</button>
+<button class="solo" onclick="startSolo()">Play Solo</button>
 
-<h2 id="status"></h2>
+<h3 id="status"></h3>
+<h2 id="timer"></h2>
 
 <h2 id="question"></h2>
 <div id="answers"></div>
@@ -62,51 +66,126 @@ cursor:pointer;
 
 <script>
 
-// ---------------- TELEGRAM USER ----------------
+// ---------------- USER ----------------
 const tg = window.Telegram.WebApp;
 tg.ready();
 
-let user = {
+const user = {
 id: tg.initDataUnsafe?.user?.id || Math.floor(Math.random()*999999),
 name: tg.initDataUnsafe?.user?.first_name || "Guest"
 };
 
-document.getElementById("username").innerText =
+document.getElementById("user").innerText =
 "👋 Welcome " + user.name;
 
 // ---------------- SOCKET ----------------
-const socket = io("https://YOUR-SERVER-URL"); // 👈 تغییر بده
+const socket = io("YOUR_SERVER_URL");
 
-let matchId = null;
-let currentQuestion = null;
+let matchId=null;
+let solo=false;
+let questions=[];
+let index=0;
+let score=0;
+let answered=false;
+let timer;
+let time=10;
+
+// ---------------- QUESTIONS (SOLO) ----------------
+const ALL_QUESTIONS=[
+{q:"Capital of France?",a:["Berlin","Paris","Rome","London"],c:1},
+{q:"2+2?",a:["3","4","5","6"],c:1},
+{q:"Sky color?",a:["Green","Blue","Red","Yellow"],c:1},
+{q:"5x2?",a:["10","11","12","13"],c:0},
+{q:"Capital of Iran?",a:["Tehran","Shiraz","Tabriz","Mashhad"],c:0}
+];
 
 // ---------------- FIND MATCH ----------------
 function findMatch(){
-socket.emit("find_match", user);
-document.getElementById("status").innerText = "Searching opponent...";
+solo=false;
+socket.emit("find_match",user);
+document.getElementById("status").innerText="Searching...";
+}
+
+// ---------------- SOLO MODE ----------------
+function startSolo(){
+
+solo=true;
+index=0;
+score=0;
+
+questions=[...ALL_QUESTIONS].sort(()=>Math.random()-0.5).slice(0,5);
+
+document.getElementById("status").innerText="Solo Mode";
+
+loadQuestion();
 }
 
 // ---------------- MATCH FOUND ----------------
-socket.on("match_found", (data)=>{
-matchId = data.matchId;
-document.getElementById("status").innerText = "Match Found!";
+socket.on("match_found",(data)=>{
+matchId=data.matchId;
+document.getElementById("status").innerText="Match Found!";
 });
 
-// ---------------- QUESTION ----------------
-socket.on("question", (q)=>{
+// ---------------- QUESTION (ONLINE) ----------------
+socket.on("question",(q)=>{
 
-currentQuestion = q;
+if(solo) return;
 
-document.getElementById("question").innerText = q.q;
-document.getElementById("answers").innerHTML = "";
+loadOnlineQuestion(q);
+});
+
+// ---------------- LOAD SOLO ----------------
+function loadQuestion(){
+
+if(index>=questions.length){
+return endGame();
+}
+
+answered=false;
+time=10;
+startTimer();
+
+const q=questions[index];
+
+document.getElementById("question").innerText=q.q;
+document.getElementById("answers").innerHTML="";
+
+q.a.forEach((opt,i)=>{
+
+const btn=document.createElement("button");
+btn.className="answer";
+
+btn.innerText=opt;
+
+btn.onclick=()=>answerSolo(i);
+
+document.getElementById("answers").appendChild(btn);
+
+});
+
+}
+
+// ---------------- LOAD ONLINE ----------------
+function loadOnlineQuestion(q){
+
+answered=false;
+time=10;
+startTimer();
+
+document.getElementById("question").innerText=q.q;
+document.getElementById("answers").innerHTML="";
 
 q.options.forEach((opt,i)=>{
 
-const btn = document.createElement("button");
-btn.className = "answer-btn";
-btn.innerText = opt;
+const btn=document.createElement("button");
+btn.className="answer";
 
-btn.onclick = ()=>{
+btn.innerText=opt;
+
+btn.onclick=()=>{
+
+if(answered)return;
+answered=true;
 
 socket.emit("answer",{
 matchId,
@@ -120,20 +199,72 @@ document.getElementById("answers").appendChild(btn);
 
 });
 
-});
+}
+
+// ---------------- SOLO ANSWER ----------------
+function answerSolo(i){
+
+if(answered)return;
+answered=true;
+
+if(i===questions[index].c){
+score++;
+}
+
+index++;
+loadQuestion();
+}
+
+// ---------------- TIMER ----------------
+function startTimer(){
+
+clearInterval(timer);
+
+document.getElementById("timer").innerText="Time: "+time;
+
+timer=setInterval(()=>{
+
+time--;
+document.getElementById("timer").innerText="Time: "+time;
+
+if(time<=0){
+clearInterval(timer);
+
+if(solo){
+index++;
+loadQuestion();
+}else{
+answered=true;
+}
+}
+
+},1000);
+}
+
+// ---------------- END SOLO ----------------
+function endGame(){
+
+document.getElementById("question").innerHTML="";
+document.getElementById("answers").innerHTML="";
+document.getElementById("timer").innerHTML="";
+
+document.getElementById("result").innerHTML=`
+<h2>Game Over</h2>
+<h3>Score: ${score}/${questions.length}</h3>
+`;
+}
 
 // ---------------- MATCH END ----------------
 socket.on("match_end",(data)=>{
 
 document.getElementById("question").innerHTML="";
 document.getElementById("answers").innerHTML="";
+document.getElementById("timer").innerHTML="";
 
 document.getElementById("result").innerHTML=`
 <h2>Game Over</h2>
 <h3>Winner: ${data.winner}</h3>
-<pre>${JSON.stringify(data.scores,null,2)}</pre>
 `;
-
 });
 
 </script>
